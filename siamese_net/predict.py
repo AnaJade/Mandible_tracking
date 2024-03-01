@@ -37,7 +37,6 @@ if __name__ == '__main__':
     # Merge all annotation files based on config file
     print("Loading annotation files...")
     annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
-    annotations_test = annotations_test[:5]
 
     # Create dataset object
     print("Initializing dataset object...")
@@ -46,6 +45,7 @@ if __name__ == '__main__':
     dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, transforms)
 
     print("Creating dataloader...")
+    # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
     dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
 
     # Define the model
@@ -58,8 +58,12 @@ if __name__ == '__main__':
     print("Performing inference...")
     preds = get_preds(model, device, dataloader_test)
 
+    # Format to pandas df
+    preds_df = annotations_test.copy()
+    preds_df.iloc[:, :] = preds
+
     # Save preds as csv
     print("Saving results...")
     preds_file = f"{subnet_name}_{len(cam_inputs)}cams_{configs['training']['num_fc_hidden_units']}"
-    preds.to_csv(preds_file)
+    preds_df.to_csv(f"siamese_net/preds/{preds_file}.csv")
 
