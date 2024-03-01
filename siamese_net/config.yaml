@@ -1,0 +1,29 @@
+data:
+  dataset_root: C:\Users\anaja\OneDrive\Documents\Ecole\TUHH\Semester 3\Projektarbeit\Dataset_sample
+  trajectories_train:
+    - traj_split2D_s25.csv
+    # - traj_split3D1n_s25.csv
+  trajectories_valid:
+    - trajRot_mixed.csv
+  trajectories_test:
+    - traj_splitYXZ_s20.csv
+training:
+  sub_model: 'resnet18'
+  use_pretrained: True
+  cam_inputs:
+    - Left
+    # - Right
+    - Side
+  num_fc_hidden_units: 256
+  train_bs: 2
+  valid_bs: 2
+  test_bs: 2
+  max_epochs: 15
+  patience: 5
+  lr: 0.005
+  lr_scheduler:
+    step_size: 3
+    gamma: 0.1
+wandb:
+  wandb_log: True
+  project_name: 'Test-project' # 'Mandible-tracking'
