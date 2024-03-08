@@ -1,7 +1,4 @@
 import pathlib
-import numpy as np
-import matplotlib as plt
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -19,13 +16,13 @@ from utils_data import MandibleDataset, NormTransform
 from SiameseNet import SiameseNetwork, train_model
 
 if __name__ == '__main__':
-    # TODO: Change loss to account for the position and orientation scale variation
     # Load configs
     config_file = pathlib.Path("siamese_net/config.yaml")
     configs = utils.load_configs(config_file)
     dataset_root = pathlib.Path(configs['data']['dataset_root'])
     anno_paths_train = configs['data']['trajectories_train']
     anno_paths_valid = configs['data']['trajectories_valid']
+    rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
     cam_inputs = configs['training']['cam_inputs']
@@ -41,6 +38,12 @@ if __name__ == '__main__':
     wandb_log = configs['wandb']['wandb_log']
     project_name = configs['wandb']['project_name']
 
+    if rescale_pos:
+        # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
+        min_max_pos = [[299, 229, 279], [401, 311, 341]]
+    else:
+        min_max_pos = None
+
     # Set training device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     print(f'Training done on {device}')
@@ -54,8 +57,8 @@ if __name__ == '__main__':
     print("Initializing dataset object...")
     # Create dataset objects
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
-    dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, transforms)
-    dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, transforms)
+    dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, min_max_pos, transforms)
+    dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, min_max_pos, transforms)
 
     print("Creating dataloader...")
     dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=True, num_workers=4)

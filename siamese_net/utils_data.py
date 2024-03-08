@@ -1,5 +1,7 @@
 import pathlib
 
+import matplotlib
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -16,20 +18,29 @@ import utils
 
 
 class MandibleDataset(Dataset):
-    def __init__(self, root: pathlib.Path, cam_inputs: list, img_labels: pd.DataFrame, transforms=None):
+    def __init__(self, root: pathlib.Path, cam_inputs: list, img_labels: pd.DataFrame, min_max_pos=None,
+                 transforms=None):
         """
         Dataset object used to pass images to a siamese network
         :param root: dataset root path
         :param cam_inputs: choose the camera images to use
         :param img_labels: annotations for the images
+        :param min_max_pos: min and max position values. If None, no rescaling will be done
         :param transforms: transforms that will be applied to each image before being used as input by the model
         """
         self.root = root
         self.img_labels = img_labels
+        self.min_max_pos = min_max_pos
         self.transforms = transforms
         self.img_names = img_labels.index.values.tolist()
         self.cam_inputs = cam_inputs
         self.cameras = {'Left': 'l', 'Right': 'r', 'Side': 's'}
+
+        self.pos_min = None
+        self.pos_max = None
+        if self.min_max_pos is not None:
+            self.pos_min = torch.Tensor(self.min_max_pos[0])
+            self.pos_max = torch.Tensor(self.min_max_pos[1])
 
     def __len__(self):
         return len(self.img_labels)
@@ -42,6 +53,12 @@ class MandibleDataset(Dataset):
                      self.cam_inputs]
         # Read images
         images = [read_image(img_path.__str__()) for img_path in img_paths]
+
+        # Re-scale position to be between -1 and 1
+        if self.min_max_pos is not None:
+            position = torch.Tensor(img_pose[:3])
+            position = 2*((position-self.pos_min)/(self.pos_max-self.pos_min))-1
+            img_pose[:3] = position
 
         if self.transforms:
             images = [self.transforms(image) for image in images]
@@ -120,9 +137,9 @@ if __name__ == '__main__':
     print("Initializing dataset object...")
     # Create dataset objects
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
-    dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, transforms)
-    dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, transforms)
-    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, transforms)
+    dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, None, transforms)
+    dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, None, transforms)
+    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, None, transforms)
 
     print("Creating dataloader...")
     dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=False, num_workers=4)

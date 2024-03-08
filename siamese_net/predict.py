@@ -1,13 +1,9 @@
 import pathlib
-import numpy as np
-import matplotlib as plt
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.optim import lr_scheduler
 import torchvision
 from torch.utils.data import DataLoader
+from sklearn.metrics import mean_squared_error
 
 # Disable warning for using transforms.v2
 torchvision.disable_beta_transforms_warning()
@@ -25,10 +21,17 @@ if __name__ == '__main__':
     configs = utils.load_configs(config_file)
     dataset_root = pathlib.Path(configs['data']['dataset_root'])
     anno_paths_test = configs['data']['trajectories_test']
+    rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
     cam_inputs = configs['training']['cam_inputs']
     test_bs = configs['training']['test_bs']
+
+    if rescale_pos:
+        # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
+        min_max_pos = [[299, 229, 279], [401, 311, 341]]
+    else:
+        min_max_pos = None
 
     # Set training device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -39,16 +42,15 @@ if __name__ == '__main__':
     annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
 
     # Create dataset object
-    print("Initializing dataset object...")
+    print("Creating dataloader...")
     # Create dataset objects
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
-    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, transforms)
-
-    print("Creating dataloader...")
+    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
     # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
     dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
 
     # Define the model
+    print("Loading model...")
     model = SiameseNetwork(configs)
     # Load trained weights
     weights_file = f"{subnet_name}_{len(cam_inputs)}cams_{configs['training']['num_fc_hidden_units']}"
@@ -56,7 +58,11 @@ if __name__ == '__main__':
     model.to(device)
 
     print("Performing inference...")
-    preds = get_preds(model, device, dataloader_test)
+    preds = get_preds(model, device, dataloader_test, min_max_pos)
+
+    # Calculate the loss
+    test_loss = mean_squared_error(annotations_test.to_numpy(), preds.to_numpy())
+    print(f'Test loss: {test_loss}')
 
     # Format to pandas df
     preds_df = annotations_test.copy()

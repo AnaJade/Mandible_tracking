@@ -5,6 +5,7 @@ Based on the PyTorch example: https://github.com/pytorch/examples/blob/main/siam
 import pathlib
 import copy
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -95,6 +96,21 @@ class SiameseNetwork(nn.Module):
         print(self.fc)
 
 
+class ScaledMSELoss(nn.Module):
+    def __init__(self):
+        super(ScaledMSELoss, self).__init__()
+
+    def forward(self, inputs, targets):
+        """
+        Calculate the loss by scaling the quaternion values
+        :param inputs: predicted outputs
+        :param targets: true outputs
+        :return: loss value
+        """
+
+        return 0
+
+
 def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=False):
     model.train()
     epoch_loss = 0
@@ -140,31 +156,15 @@ def eval_model(model, device, dataloader, criterion):
     return valid_loss
 
 
-def get_preds(model, device, dataloader) -> pd.DataFrame:
-    # Get predictions
-    preds = []
-    with torch.no_grad():
-        for (images, targets) in tqdm(dataloader):
-            images = [img.to(device) for img in images]
-            output = model(images).squeeze()
-            print(f'Output: {output}')
-            print(f'Output type: {type(output)}')
-            print(f'Targets: {targets}')
-            preds.append(output)
-    # Merge all outputs into one array
-    preds = torch.concat(preds, dim=0).detach().to_numpy()
-    print(preds.shape)
-    # Format to df
-    preds = pd.DataFrame(preds)
-
-    return preds
-
-
 def train_model(configs, model, dataloaders, device, criterion, optimizer, scheduler):
     # Load relevant config params
     log_wandb = configs['wandb']['wandb_log']
     num_epochs = configs['training']['max_epochs']
     patience = configs['training']['patience']
+
+    subnet_name = configs['training']['sub_model']
+    cam_inputs = configs['training']['cam_inputs']
+    nb_hidden = configs['training']['num_fc_hidden_units']
 
     train_loader = dataloaders[0]
     valid_loader = dataloaders[1]
@@ -194,6 +194,9 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
         if epoch_valid_loss < best_valid_loss:
             best_epoch = epoch
             best_model_weights = copy.deepcopy(model.state_dict())
+            # Save model
+            weights_file = f"{subnet_name}_{len(cam_inputs)}cams_{nb_hidden}"
+            torch.save(model.state_dict(), f"siamese_net/model_weights/{weights_file}.pth")
 
         # Log results
         if log_wandb:
@@ -209,6 +212,30 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
     return model
 
 
+def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
+    # Get predictions
+    preds = []
+    with torch.no_grad():
+        for (images, targets) in tqdm(dataloader):
+            images = [img.to(device) for img in images]
+            output = model(images).squeeze()
+            preds.append(output)
+    # Merge all outputs into one array
+    if len(preds[-1].shape) < len(preds[-2].shape):
+        preds[-1] = preds[-1][None, :]
+    preds = torch.concat(preds, dim=0).detach().cpu().numpy()
+    if min_max_pos is not None:
+        positions = preds[:, :3]
+        min_pos = np.array(min_max_pos[0])
+        max_pos = np.array(min_max_pos[1])
+        positions = ((positions + 1) / 2) * (max_pos - min_pos) + min_pos
+        preds[:, :3] = positions
+    # Format to df
+    preds = pd.DataFrame(preds)
+
+    return preds
+
+
 def wandb_init(configs: dict):
     wandb.init(
         # Choose wandb project
@@ -217,6 +244,7 @@ def wandb_init(configs: dict):
         config={
             "trajectories_train": configs['data']['trajectories_train'],
             "trajectories_valid": configs['data']['trajectories_valid'],
+            "rescale_pos": configs['data']['rescale_pos'],
             "subnet": configs['training']['sub_model'],
             "use_pretrained": configs['training']['use_pretrained'],
             "cam_inputs": configs['training']['cam_inputs'],
