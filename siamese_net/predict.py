@@ -1,5 +1,7 @@
+import argparse
 import pathlib
 
+import numpy as np
 import torch
 import torchvision
 from torch.utils.data import DataLoader
@@ -16,8 +18,21 @@ from SiameseNet import SiameseNetwork, get_preds
 
 
 if __name__ == '__main__':
+    # Set up the argument parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path',
+                        help='Path to the config file',
+                        type=str)
+
+    args = parser.parse_args()
+    config_file = pathlib.Path(args.config_path)
+    # config_file = pathlib.Path("siamese_net/config.yaml")
+
+    if not config_file.exists():
+        print(f'Config file not found at {args.config_path}')
+        raise SystemExit(1)
+
     # Load configs
-    config_file = pathlib.Path("siamese_net/config.yaml")
     configs = utils.load_configs(config_file)
     dataset_root = pathlib.Path(configs['data']['dataset_root'])
     anno_paths_test = configs['data']['trajectories_test']
@@ -63,6 +78,14 @@ if __name__ == '__main__':
     # Calculate the loss
     test_loss = mean_squared_error(annotations_test.to_numpy(), preds.to_numpy())
     print(f'Test loss: {test_loss}')
+
+    # Calculate the loss on the normalized data
+    norm_annotations = utils_data.normalize_position(torch.Tensor(annotations_test.to_numpy()),
+                                                     np.array(min_max_pos[0]), np.array(min_max_pos[1]))
+    norm_preds = utils_data.normalize_position(torch.Tensor(preds.to_numpy()),
+                                               np.array(min_max_pos[0]), np.array(min_max_pos[1]))
+    test_loss = mean_squared_error(norm_annotations, norm_preds)
+    print(f'Test loss on normalized data: {test_loss}')
 
     # Format to pandas df
     preds_df = annotations_test.copy()

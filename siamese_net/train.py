@@ -1,3 +1,4 @@
+import argparse
 import pathlib
 import torch
 import torch.nn as nn
@@ -15,9 +16,23 @@ import utils_data
 from utils_data import MandibleDataset, NormTransform
 from SiameseNet import SiameseNetwork, train_model
 
+
 if __name__ == '__main__':
+    # Set up the argument parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path',
+                        help='Path to the config file',
+                        type=str)
+
+    args = parser.parse_args()
+    config_file = pathlib.Path(args.config_path)
+    # config_file = pathlib.Path("siamese_net/config.yaml")
+
+    if not config_file.exists():
+        print(f'Config file not found at {args.config_path}')
+        raise SystemExit(1)
+
     # Load configs
-    config_file = pathlib.Path("siamese_net/config.yaml")
     configs = utils.load_configs(config_file)
     dataset_root = pathlib.Path(configs['data']['dataset_root'])
     anno_paths_train = configs['data']['trajectories_train']

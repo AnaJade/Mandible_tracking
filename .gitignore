@@ -4,3 +4,5 @@ wandb/*
 siamese_net/__pycache__
 siamese_net/model_weights/*
 siamese_net/preds/*
+siamese_net/yolo6d
+ML_architecture.drawio

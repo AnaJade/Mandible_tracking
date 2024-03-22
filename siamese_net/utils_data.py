@@ -39,13 +39,13 @@ class MandibleDataset(Dataset):
         self.pos_min = None
         self.pos_max = None
         if self.min_max_pos is not None:
-            self.pos_min = torch.Tensor(self.min_max_pos[0])
-            self.pos_max = torch.Tensor(self.min_max_pos[1])
+            self.pos_min = np.array(self.min_max_pos[0])
+            self.pos_max = np.array(self.min_max_pos[1])
 
     def __len__(self):
         return len(self.img_labels)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx):git 
         img_id = self.img_names[idx]
         img_pose = self.img_labels.iloc[idx].to_numpy().astype(float)
         # Get img paths for corresponding frame
@@ -56,10 +56,9 @@ class MandibleDataset(Dataset):
 
         # Re-scale position to be between -1 and 1
         if self.min_max_pos is not None:
-            position = torch.Tensor(img_pose[:3])
-            position = 2*((position-self.pos_min)/(self.pos_max-self.pos_min))-1
-            img_pose[:3] = position
+            img_pose = normalize_position(torch.Tensor(img_pose), self.pos_min, self.pos_max)
 
+        # Apply transforms
         if self.transforms:
             images = [self.transforms(image) for image in images]
         return images, img_pose
@@ -112,6 +111,42 @@ def get_euler_annotations(quaternion_annos: list[pd.DataFrame]) -> list[pd.DataF
         e_anno.append(pose_euler)
 
     return e_anno
+
+
+def normalize_position(pose: torch.Tensor, min_pos: np.ndarray, max_pos: np.ndarray) -> torch.Tensor:
+    """
+    Normalize the position values to [-1, 1]
+    :param pose: pose values
+    :param min_pos: min position values in x, y, z as a np array: [xmin, ymin, zmin]
+    :param max_pos: max position values in x, y, z as a np array: [xmax, ymax, zmax]
+    :return: Pose with the normalized position values
+    """
+    # Reshape arrays if necessary
+    if len(pose.shape) < 2:
+        pose = pose[None, :]
+    if len(min_pos.shape) < 2:
+        min_pos = np.expand_dims(min_pos, 0)
+    if len(max_pos.shape) < 2:
+        max_pos = np.expand_dims(max_pos, 0)
+    position = pose[:, :3]
+    position = 2 * ((position - min_pos) / (max_pos - min_pos)) - 1
+    pose[:, :3] = position
+
+    return pose
+
+
+def rescale_position(pose: torch.Tensor, min_pos: np.ndarray, max_pos: np.ndarray) -> torch.Tensor:
+    """
+    Rescale the position values from between [-1, 1] to their actual values
+    :param pose: scaled pose values
+    :param min_pos: min position values in x, y, z as a np array: [xmin, ymin, zmin]
+    :param max_pos: max position values in x, y, z as a np array: [xmax, ymax, zmax]
+    :return: Pose with the rescaled position values
+    """
+    positions = pose[:, :3]
+    positions = ((positions + 1) / 2) * (max_pos - min_pos) + min_pos
+    pose[:, :3] = positions
+    return pose
 
 
 if __name__ == '__main__':
