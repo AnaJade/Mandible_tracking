@@ -45,9 +45,9 @@ class MandibleDataset(Dataset):
     def __len__(self):
         return len(self.img_labels)
 
-    def __getitem__(self, idx):git 
+    def __getitem__(self, idx):
         img_id = self.img_names[idx]
-        img_pose = self.img_labels.iloc[idx].to_numpy().astype(float)
+        img_pose = self.img_labels.iloc[idx].to_numpy()
         # Get img paths for corresponding frame
         img_paths = [self.root.joinpath(cam).joinpath(f"{img_id}_{self.cameras[cam]}.jpg") for cam in
                      self.cam_inputs]
@@ -61,7 +61,7 @@ class MandibleDataset(Dataset):
         # Apply transforms
         if self.transforms:
             images = [self.transforms(image) for image in images]
-        return images, img_pose
+        return images, np.float64(np.squeeze(img_pose))
 
 
 class NormTransform(torch.nn.Module):

@@ -2,17 +2,20 @@ data:
   dataset_root: C:\Users\anaja\OneDrive\Documents\Ecole\TUHH\Semester 3\Projektarbeit\Dataset_sample
   trajectories_train:
     - traj_split2D_s25.csv
+    # - traj_contour0.csv
+    # - traj_contour1.csv
     # - traj_split3D1n_s25.csv
     # - traj_split3D1p_s25.csv
   trajectories_valid:
     - trajRot_mixed.csv
     # - traj_split3D1r_s35.csv
   trajectories_test:
-    - traj_splitYXZ_s20.csv
+    # - traj_splitYXZ_s20.csv
     # - traj_split_p1Dv2_s25.csv
+    - traj_random0.csv
   rescale_pos: True
 training:
-  sub_model: 'resnet18'
+  sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
   use_pretrained: True
   cam_inputs:
     - Left
@@ -30,4 +33,4 @@ training:
     gamma: 0.1
 wandb:
   wandb_log: True
-  project_name: 'Mandible-tracking' # 'Test-project'
+  project_name: 'Test-project' # 'Test-project'  'Mandible-tracking'

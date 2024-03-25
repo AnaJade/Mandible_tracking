@@ -16,11 +16,14 @@ import torchvision
 from torchvision import models
 
 import utils
+import utils_data
+from EfficientNet import EfficientNet
 
 
 class SiameseNetwork(nn.Module):
-    def __init__(self, configs: dict):
+    def __init__(self, configs: dict, input_shape=(1, 3, 1200, 1920)):
         super(SiameseNetwork, self).__init__()
+        self.input_shape = input_shape
         self.subnet_name = configs['training']['sub_model']
         self.use_pretrained = configs['training']['use_pretrained']
         self.cam_inputs = configs['training']['cam_inputs']
@@ -31,11 +34,14 @@ class SiameseNetwork(nn.Module):
         self.subnet = None
         self.subnet_output_units = 0
 
+        # Init average pool layer that needs to be manually added to the EfficientNet feature extractor
+        self.avg_pooling = nn.AdaptiveAvgPool2d(1)
+
         # Get subnet network
         if self.subnet_name == 'resnet18':
             self.resnet18_init()
-        elif self.subnet_name == 'yolo6d':
-            self.yolo6d_init()
+        elif "efficientnet" in self.subnet_name:
+            self.efficientnet_init()
         else:
             print(f"Desired subnetwork ({self.subnet_name}) isn't defined.")
 
@@ -62,18 +68,42 @@ class SiameseNetwork(nn.Module):
 
         self.subnet_output_units = self.subnet.fc.in_features
 
-        # remove the last layer of resnet18 (linear layer which is before avgpool layer)
+        # remove the last layer of resnet18 (linear layer which is after avgpool layer)
         self.subnet = torch.nn.Sequential(*(list(self.subnet.children())[:-1]))
 
         # Load weights if needed
-        self.subnet.apply(self.init_weights)
+        if not self.use_pretrained:
+            self.subnet.apply(self.init_weights)
 
-    def yolo6d_init(self):
-        pass
+    def efficientnet_init(self):
+        # Check if the version of efficientnet is valid
+        if self.subnet_name in [f'efficientnet-b{v}' for v in range(8)]:
+            # Init the entire EfficientNet model
+            if self.use_pretrained:
+                self.subnet = EfficientNet.from_pretrained(self.subnet_name)
+            else:
+                self.subnet = EfficientNet.from_name(self.subnet_name)
+            # Get subnet output size
+            # TODO: Find a better way to calculate the nb of output units
+            dummy_input = torch.randn(self.input_shape)    # Input shape of the images
+            subnet_output = self.forward_subnet(dummy_input)
+            self.subnet_output_units = subnet_output.shape[-1]
+        else:
+            print(f"{self.subnet_name} isn't a valid EfficientNet version")
+            # Available versions: 'efficientnet-b{i}', with i = 0, ..., 7
+            raise SystemExit(1)
 
     def forward_subnet(self, x):
-        output = self.subnet(x)
-        output = output.view(output.size()[0], -1)
+        # x shape: [batch, 3, 1200, 1920], dtype=torch.float32
+        if 'resnet' in self.subnet_name:
+            output = self.subnet(x)     # Shape: [batch, # feature maps, 1, 1]
+            output = output.view(output.size()[0], -1)  # Shape: [batch, # feature maps], dtype=torch.float32
+        elif 'efficientnet' in self.subnet_name:
+            output = self.subnet.extract_features(x)
+            output = self.avg_pooling(output)
+            output = output.view(output.size()[0], -1)  # Shape: [batch, # feature maps], dtype=torch.float32
+        else:
+            output = torch.Tensor()
         return output
 
     def forward(self, inputs):
@@ -96,21 +126,6 @@ class SiameseNetwork(nn.Module):
         print(self.fc)
 
 
-class ScaledMSELoss(nn.Module):
-    def __init__(self):
-        super(ScaledMSELoss, self).__init__()
-
-    def forward(self, inputs, targets):
-        """
-        Calculate the loss by scaling the quaternion values
-        :param inputs: predicted outputs
-        :param targets: true outputs
-        :return: loss value
-        """
-
-        return 0
-
-
 def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=False):
     model.train()
     epoch_loss = 0
@@ -119,7 +134,7 @@ def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=F
         targets = targets.to(device)
         optimizer.zero_grad()
         outputs = model(images).squeeze()
-        batch_loss = criterion(outputs, targets).type(torch.float32)
+        batch_loss = criterion(outputs, targets)    # .type(torch.float32)
         batch_loss.backward()
         optimizer.step()
 
@@ -132,8 +147,8 @@ def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=F
 
         # For debugging purposes, save model
         if batch_idx == 40:
-            weights_file = f"resnet18_2cams_256"
-            torch.save(model.state_dict(), f"siamese_net/model_weights/{weights_file}.pth")
+            weights_file = f"efficientnetb0_2cams_256"
+            torch.save(model.state_dict(), f"siamese_net/model_weights/{weights_file}_b40.pth")
 
     # Calculate final epoch loss
     epoch_loss /= len(train_loader.dataset)
@@ -213,6 +228,14 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
 
 
 def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
+    """
+    Get pose predictions on the dataloader data
+    :param model: model with the pre-trained weights already loaded
+    :param device: device used to perform inference
+    :param dataloader: pytorch dataloader with the inference data
+    :param min_max_pos: min and max possible values in x, y, z as a list: [[xmin, ymin, zmin], [xmax, ymax, zmax]]
+    :return: model predictions for the images in the dataloader
+    """
     # Get predictions
     preds = []
     with torch.no_grad():
@@ -225,11 +248,7 @@ def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
         preds[-1] = preds[-1][None, :]
     preds = torch.concat(preds, dim=0).detach().cpu().numpy()
     if min_max_pos is not None:
-        positions = preds[:, :3]
-        min_pos = np.array(min_max_pos[0])
-        max_pos = np.array(min_max_pos[1])
-        positions = ((positions + 1) / 2) * (max_pos - min_pos) + min_pos
-        preds[:, :3] = positions
+        preds = utils_data.rescale_position(preds, np.array(min_max_pos[0]), np.array(min_max_pos[1]))
     # Format to df
     preds = pd.DataFrame(preds)
 
@@ -289,5 +308,11 @@ if __name__ == '__main__':
 
     # Define the model
     model = SiameseNetwork(configs)
-    print(model.print_layers())
+    # print(model.print_layers())
+
+    img = torch.randn(1, 3, 1200, 1920)
+
+    subnet_output = model.forward_subnet(img)
+
+    print(f'Shape of subnet output: {subnet_output.shape}')
 
