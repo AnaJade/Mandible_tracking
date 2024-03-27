@@ -4,6 +4,7 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import argparse
 import pathlib
+import torch
 
 
 def print_hi(name):
@@ -22,6 +23,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
     config_file = pathlib.Path(args.config_path)
     # config_file = pathlib.Path("siamese_net/config.yaml")
+
+    # Test cuda install
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    print(f'Device: {device}')
 
     if not config_file.exists():
         print(f'Config file not found at {args.config_path}')

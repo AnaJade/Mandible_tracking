@@ -48,7 +48,7 @@ def convert_vid2imgs(vid_path: pathlib.Path, anno_path: pathlib.Path, img_base_d
         # Replace duplicate values with NaN in og df
         duplicate_idx = [idx for idx in annos.index.to_list() if idx not in unique_idx]
         annos.loc[duplicate_idx, :] = np.nan
-        print(f'Removed {len(duplicate_idx)} duplicate frames from {vid_path.stem}.')
+        print(f'\nRemoved {len(duplicate_idx)} duplicate frames from {vid_path.stem}.')
 
     annos = annos.reset_index().drop('time', axis=1)
 
@@ -57,7 +57,7 @@ def convert_vid2imgs(vid_path: pathlib.Path, anno_path: pathlib.Path, img_base_d
     cams = {'l': 'Left', 'r': 'Right', 's': 'Side'}
 
     # Load video file
-    print(f"\nLoading {cams[cam]} video file...")
+    print(f"Loading {cams[cam]} video file...")
     vid = cv2.VideoCapture(vid_path.__str__())
     readable, img = vid.read()
 

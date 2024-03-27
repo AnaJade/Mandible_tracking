@@ -1,7 +1,9 @@
 .idea
 __pycache__
+excel2csv.py
 wandb/*
 siamese_net/__pycache__
+siamese_net/sweep_configs/*
 siamese_net/model_weights/*
 siamese_net/preds/*
 siamese_net/yolo6d

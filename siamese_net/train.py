@@ -40,6 +40,7 @@ if __name__ == '__main__':
     rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
+    weights_file_addon = configs['training']['weights_file_addon']
     cam_inputs = configs['training']['cam_inputs']
     train_bs = configs['training']['train_bs']
     valid_bs = configs['training']['valid_bs']
@@ -53,9 +54,17 @@ if __name__ == '__main__':
     wandb_log = configs['wandb']['wandb_log']
     project_name = configs['wandb']['project_name']
 
+    cam_str = ''.join([c[0].lower() for c in cam_inputs])
+    if weights_file_addon:
+        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
+    else:
+        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}"
+    print(f'Weights will be saved to: {weights_file}')
+
     if rescale_pos:
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
-        min_max_pos = [[299, 229, 279], [401, 311, 341]]
+        # min_max_pos = [[299, 229, 279], [401, 311, 341]]
+        min_max_pos = utils_data.get_dataset_min_max_pos(configs)
     else:
         min_max_pos = None
 
@@ -94,10 +103,16 @@ if __name__ == '__main__':
     model_fit = train_model(configs, model, [dataloader_train, dataloader_valid],
                             device, criterion, optimizer, scheduler)
 
-    # Save model
+    # Save model (not needed, since the model is saved during training
+    """
     print("Saving best model...")
-    weights_file = f"{subnet_name}_{len(cam_inputs)}cams_{configs['training']['num_fc_hidden_units']}"
+    # weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
+    if weights_file_addon:
+        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
+    else:
+        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}"
     torch.save(model_fit.state_dict(), f"siamese_net/model_weights/{weights_file}.pth")
+    """
 
 
 

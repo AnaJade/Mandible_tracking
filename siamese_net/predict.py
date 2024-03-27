@@ -41,10 +41,19 @@ if __name__ == '__main__':
     subnet_name = configs['training']['sub_model']
     cam_inputs = configs['training']['cam_inputs']
     test_bs = configs['training']['test_bs']
+    weights_file_addon = configs['training']['weights_file_addon']
+
+    cam_str = ''.join([c[0].lower() for c in cam_inputs])
+    if weights_file_addon:
+        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
+    else:
+        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}"
+    print(f'Loading weights from: {weights_file}')
 
     if rescale_pos:
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
-        min_max_pos = [[299, 229, 279], [401, 311, 341]]
+        # min_max_pos = [[299, 229, 279], [401, 311, 341]]
+        min_max_pos = utils_data.get_dataset_min_max_pos(configs)
     else:
         min_max_pos = None
 
@@ -68,8 +77,8 @@ if __name__ == '__main__':
     print("Loading model...")
     model = SiameseNetwork(configs)
     # Load trained weights
-    weights_file = f"{subnet_name}_{len(cam_inputs)}cams_{configs['training']['num_fc_hidden_units']}"
-    model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}.pth"))
+    # model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}.pth"))
+    model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}_fully_trained.pth"))    # Remove after debug
     model.to(device)
 
     print("Performing inference...")
@@ -93,6 +102,6 @@ if __name__ == '__main__':
 
     # Save preds as csv
     print("Saving results...")
-    preds_file = f"{subnet_name}_{len(cam_inputs)}cams_{configs['training']['num_fc_hidden_units']}"
+    preds_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
     preds_df.to_csv(f"siamese_net/preds/{preds_file}.csv")
 

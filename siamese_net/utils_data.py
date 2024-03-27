@@ -5,6 +5,7 @@ matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.metrics import mean_squared_error
 
 import torch
 import torchvision
@@ -149,6 +150,27 @@ def rescale_position(pose: torch.Tensor, min_pos: np.ndarray, max_pos: np.ndarra
     return pose
 
 
+def get_dataset_min_max_pos(config: dict) -> list:
+    # Load the annotations for all sets (train, valid, test) and get the min-max values for X, Y, Z
+    paths = (config['data']['trajectories_train'] + config['data']['trajectories_valid'] +
+             config['data']['trajectories_test'])
+
+    # Merge annotations
+    dataset_root = pathlib.Path(config['data']['dataset_root'])
+    merged_annos = merge_annotations(dataset_root, paths)
+    merged_pos = merged_annos.loc[:, ['x', 'y', 'z']]
+    min_pos = list(np.floor(merged_pos.min(axis=0)))
+    max_pos = list(np.ceil(merged_pos.max(axis=0)))
+
+    return [min_pos, max_pos]
+
+
+def get_loss_per_axis():
+    # Return a pandas df with the RMSE in X, Y, Z, rx, r, rz
+
+    pass
+
+
 if __name__ == '__main__':
     config_file = pathlib.Path("siamese_net/config.yaml")
     configs = utils.load_configs(config_file)
@@ -161,6 +183,9 @@ if __name__ == '__main__':
     train_bs = configs['training']['train_bs']
     valid_bs = configs['training']['valid_bs']
     test_bs = configs['training']['test_bs']
+
+    # Get min-max position for all annotation files
+    min_max_pos = get_dataset_min_max_pos(configs)
 
     # Merge all annotation files based on config file
     print("Loading annotation files...")

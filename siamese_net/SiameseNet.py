@@ -4,6 +4,7 @@ Based on the PyTorch example: https://github.com/pytorch/examples/blob/main/siam
 """
 import pathlib
 import copy
+import time
 
 import numpy as np
 import pandas as pd
@@ -146,9 +147,11 @@ def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=F
         epoch_loss = batch_loss.sum().item()
 
         # For debugging purposes, save model
+        """
         if batch_idx == 40:
             weights_file = f"efficientnetb0_2cams_256"
             torch.save(model.state_dict(), f"siamese_net/model_weights/{weights_file}_b40.pth")
+        """
 
     # Calculate final epoch loss
     epoch_loss /= len(train_loader.dataset)
@@ -180,9 +183,16 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
     subnet_name = configs['training']['sub_model']
     cam_inputs = configs['training']['cam_inputs']
     nb_hidden = configs['training']['num_fc_hidden_units']
+    weights_file_addon = configs['training']['weights_file_addon']
 
     train_loader = dataloaders[0]
     valid_loader = dataloaders[1]
+
+    cam_str = ''.join([c[0].lower() for c in cam_inputs])
+    if weights_file_addon:
+        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
+    else:
+        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}"
 
     if log_wandb:
         wandb_init(configs)
@@ -210,7 +220,6 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
             best_epoch = epoch
             best_model_weights = copy.deepcopy(model.state_dict())
             # Save model
-            weights_file = f"{subnet_name}_{len(cam_inputs)}cams_{nb_hidden}"
             torch.save(model.state_dict(), f"siamese_net/model_weights/{weights_file}.pth")
 
         # Log results
@@ -238,10 +247,13 @@ def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
     """
     # Get predictions
     preds = []
+    inference_time = []
     with torch.no_grad():
         for (images, targets) in tqdm(dataloader):
             images = [img.to(device) for img in images]
+            start_time = time.time()
             output = model(images).squeeze()
+            inference_time.append(time.time() - start_time)
             preds.append(output)
     # Merge all outputs into one array
     if len(preds[-1].shape) < len(preds[-2].shape):
@@ -251,6 +263,11 @@ def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
         preds = utils_data.rescale_position(preds, np.array(min_max_pos[0]), np.array(min_max_pos[1]))
     # Format to df
     preds = pd.DataFrame(preds)
+    # Find inference time stats
+    inference_time = np.array(inference_time)
+    print(f'Average inference time: {np.mean(inference_time)}')
+    print(f'Min inference time: {np.min(inference_time)}')
+    print(f'Max inference time: {np.max(inference_time)}')
 
     return preds
 
