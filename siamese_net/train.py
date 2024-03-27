@@ -62,7 +62,7 @@ if __name__ == '__main__':
     print(f'Weights will be saved to: {weights_file}')
 
     if rescale_pos:
-        # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
+        # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]]
         # min_max_pos = [[299, 229, 279], [401, 311, 341]]
         min_max_pos = utils_data.get_dataset_min_max_pos(configs)
     else:

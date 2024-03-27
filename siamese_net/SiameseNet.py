@@ -134,7 +134,12 @@ def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=F
         images = [img.to(device) for img in images]
         targets = targets.to(device)
         optimizer.zero_grad()
-        outputs = model(images).squeeze()
+        outputs = model(images)
+        # Reshape outputs/targets if needed
+        if len(outputs.shape) > 2:
+            outputs = outputs.squeeze()
+        if len(targets.shape) > 2:
+            targets = targets.squeeze()
         batch_loss = criterion(outputs, targets)    # .type(torch.float32)
         batch_loss.backward()
         optimizer.step()

@@ -62,7 +62,12 @@ class MandibleDataset(Dataset):
         # Apply transforms
         if self.transforms:
             images = [self.transforms(image) for image in images]
-        return images, np.float64(np.squeeze(img_pose))
+        
+        # Reshape target if needed
+        if len(img_pose.shape) > 2:
+            img_pose = np.squeeze(img_pose)
+        
+        return images, np.float64(img_pose)
 
 
 class NormTransform(torch.nn.Module):
