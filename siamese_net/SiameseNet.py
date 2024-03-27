@@ -198,9 +198,9 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
 
     cam_str = ''.join([c[0].lower() for c in cam_inputs])
     if weights_file_addon:
-        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
+        weights_file = f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
     else:
-        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}"
+        weights_file = f"{subnet_name}_{cam_str}cams_{nb_hidden}"
 
     if log_wandb:
         wandb_init(configs)

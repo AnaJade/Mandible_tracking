@@ -13,6 +13,7 @@ The configuration file contains 3 main section: data, training and wandb.
 
 **Training**
 - `sub_model`: Name of the sub-model that will be used in the model architecture
+- `weights_file_addon`: String to be added at the end of the weight file name (can be used to create new file names during sweeps)
 - `use_pretrained`: Whether to load the subnet pre-trained weights 
 - `cam_imputs`: Images from these cameras will be used for training
 - `num_fc_hidden_units`: Number of units in the fully connected hidden layer
@@ -70,4 +71,14 @@ The annotations are saved in `.csv` files using the following format:
 
 
 ## Data preprocessing
-The XYZ position values will be scaled to fit between [-1, 1], which is also the range for the quaternion values. 
+The XYZ position values will be scaled to fit between [-1, 1], which is also the range for the quaternion values.
+
+## Running the code on Ubuntu
+**Bash file modifications**
+1. Change the conda path and the env name
+2. Change the `PYTHONPATH` value to the project folder path
+
+**Running the bash scripts**
+1. Open a terminal and go to the project folder
+2. If necessary, change the bash file permissions with `chmod +x [bash file name].sh`
+3. Run the script with `./[bash file name].sh`
