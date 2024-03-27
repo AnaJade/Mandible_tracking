@@ -136,10 +136,9 @@ def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=F
         optimizer.zero_grad()
         outputs = model(images)
         # Reshape outputs/targets if needed
-        if len(outputs.shape) > 2:
-            outputs = outputs.squeeze()
-        if len(targets.shape) > 2:
-            targets = targets.squeeze()
+        if outputs.shape != targets.shape:
+            outputs = outputs.reshape([-1, 7])
+            targets = targets.reshape([-1, 7])
         batch_loss = criterion(outputs, targets)    # .type(torch.float32)
         batch_loss.backward()
         optimizer.step()
@@ -171,7 +170,11 @@ def eval_model(model, device, dataloader, criterion):
         for (images, targets) in tqdm(dataloader):
             images = [img.to(device) for img in images]
             targets = targets.to(device)
-            outputs = model(images).squeeze()
+            outputs = model(images)     # .squeeze()
+            # Reshape outputs/targets if needed
+            if outputs.shape != targets.shape:
+                outputs = outputs.reshape([-1, 7])
+                targets = targets.reshape([-1, 7])
             valid_loss += criterion(outputs, targets).sum().item()  # sum up batch loss
 
     valid_loss /= len(dataloader.dataset)
