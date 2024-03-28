@@ -56,6 +56,24 @@ class MandibleDataset(Dataset):
         # Read images
         try:
             images = [read_image(img_path.__str__()) for img_path in img_paths]
+        # Version with raising another exception (stops when an empty file is found)
+        except RuntimeError:
+            raise FileNotFoundError(f"\nOne of {[img_path.stem for img_path in img_paths]} couldn't be loaded")
+
+        # Re-scale position to be between -1 and 1
+        if self.min_max_pos is not None:
+            img_pose = normalize_position(torch.Tensor(img_pose), self.pos_min, self.pos_max)
+
+        # Apply transforms
+        if self.transforms:
+            images = [self.transforms(image) for image in images]
+
+        # Reshape target if needed
+        if len(img_pose.shape) > 2:
+            img_pose = np.squeeze(img_pose)
+
+        # Version with the warning (runs VERY SLOWLY)
+        """
         except RuntimeError:
             # Return empty tensors if the image is unreadable
             # TODO: Find better way to get true image dim
@@ -76,7 +94,7 @@ class MandibleDataset(Dataset):
             # Reshape target if needed
             if len(img_pose.shape) > 2:
                 img_pose = np.squeeze(img_pose)
-
+        """
         return images, np.float64(img_pose)
 
 

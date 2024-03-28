@@ -130,8 +130,48 @@ class SiameseNetwork(nn.Module):
 def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=False):
     model.train()
     epoch_loss = 0
-    nb_invalid_imgs = 0
+    current_batch = 0
 
+    # Version with raising another exception (stops when an empty file is found)
+    dataloader_iterator = iter(tqdm(enumerate(train_loader)))
+    while True:
+        try:
+            batch_idx, (images, targets) = next(dataloader_iterator)
+            current_batch = batch_idx
+            # Train as usual
+            images = [img.to(device) for img in images]
+            targets = targets.to(device)
+            optimizer.zero_grad()
+            outputs = model(images)
+            # Reshape outputs/targets if needed
+            if outputs.shape != targets.shape:
+                outputs = outputs.reshape([-1, 7])
+                targets = targets.reshape([-1, 7])
+            batch_loss = criterion(outputs, targets)  # .type(torch.float32)
+            batch_loss.backward()
+            optimizer.step()
+
+            # Log batch loss
+            if log_wandb:
+                wandb_log('batch', train_loss=batch_loss.item())
+
+            # Update epoch loss
+            epoch_loss = batch_loss.sum().item()
+
+        except StopIteration:
+            break
+        except FileNotFoundError as err:
+            print(err)
+
+    # Calculate final epoch loss
+    if current_batch > 0:
+        epoch_loss /= (current_batch*train_loader.batch_size)
+    else:
+        print(f"Epoch loss couldn't be calculated because first loaded image couldn't be read")
+        epoch_loss = None
+
+    # Version with the warning (runs VERY SLOWLY)
+    """
     for batch_idx, (images, targets) in tqdm(enumerate(train_loader)):
         # Check if any images in the batch couldn't be read
         #   Images: [cam batch_img_tensor for cam in cameras] -> batch_img_tensor.shape = [batch, 3, 1200, 1920]
@@ -168,6 +208,7 @@ def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=F
 
     # Calculate final epoch loss
     epoch_loss /= (len(train_loader.dataset) - nb_invalid_imgs)
+    """
 
     return epoch_loss, model
 
@@ -176,7 +217,37 @@ def eval_model(model, device, dataloader, criterion):
     model.eval()
     valid_loss = 0
     nb_invalid_imgs = 0
+    current_batch = 0
     with torch.no_grad():
+        # Version with raising another exception (stops when an empty file is found)
+        dataloader_iterator = iter(tqdm(enumerate(dataloader)))
+        while True:
+            try:
+                batch_idx, (images, targets) = next(dataloader_iterator)
+                current_batch = batch_idx
+                # Evaluate as usual
+                images = [img.to(device) for img in images]
+                targets = targets.to(device)
+                outputs = model(images)  # .squeeze()
+                # Reshape outputs/targets if needed
+                if outputs.shape != targets.shape:
+                    outputs = outputs.reshape([-1, 7])
+                    targets = targets.reshape([-1, 7])
+                valid_loss += criterion(outputs, targets).sum().item()  # sum up batch loss
+            except StopIteration:
+                break
+            except FileNotFoundError as err:
+                print(err)
+
+    # Calculate final epoch loss
+    if current_batch > 0:
+        valid_loss /= (current_batch * dataloader.batch_size)
+    else:
+        print(f"Valid loss couldn't be calculated because first loaded image couldn't be read")
+        valid_loss = 1e7    # Return random large value
+
+    # Version with the warning (runs VERY SLOWLY)
+    """
         for (images, targets) in tqdm(dataloader):
             # Check if any images in the batch couldn't be read
             #   Images: [cam batch_img_tensor for cam in cameras] -> batch_img_tensor.shape = [batch, 3, 1200, 1920]
@@ -202,6 +273,7 @@ def eval_model(model, device, dataloader, criterion):
                 valid_loss += criterion(outputs, targets).sum().item()  # sum up batch loss
 
     valid_loss /= (len(dataloader.dataset) - nb_invalid_imgs)
+    """
 
     return valid_loss
 
