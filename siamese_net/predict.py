@@ -71,7 +71,8 @@ if __name__ == '__main__':
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
     dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
     # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
-    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
+    # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
+    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
 
     # Define the model
     print("Loading model...")
@@ -87,6 +88,12 @@ if __name__ == '__main__':
     # Calculate the loss
     test_loss = mean_squared_error(annotations_test.to_numpy(), preds.to_numpy())
     print(f'Test loss: {test_loss}')
+
+    # Calculate the loss per dimension
+    annotations_test_euler = utils.pose_quaternion2euler(annotations_test.to_numpy())
+    preds_euler = utils.pose_quaternion2euler(preds.to_numpy())
+    loss_per_dim = utils_data.get_loss_per_axis(annotations_test_euler, preds_euler)
+    print(f'Loss per dimension: \n{loss_per_dim}')
 
     # Calculate the loss on the normalized data
     norm_annotations = utils_data.normalize_position(torch.Tensor(annotations_test.to_numpy()),

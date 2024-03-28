@@ -221,6 +221,8 @@ def eval_model(model, device, dataloader, criterion):
     with torch.no_grad():
         # Version with raising another exception (stops when an empty file is found)
         dataloader_iterator = iter(tqdm(enumerate(dataloader)))
+        valid_preds = []
+        valid_targets = []
         while True:
             try:
                 batch_idx, (images, targets) = next(dataloader_iterator)
@@ -233,6 +235,8 @@ def eval_model(model, device, dataloader, criterion):
                 if outputs.shape != targets.shape:
                     outputs = outputs.reshape([-1, 7])
                     targets = targets.reshape([-1, 7])
+                    valid_preds.append(outputs)
+                    valid_targets.append(targets)
                 valid_loss += criterion(outputs, targets).sum().item()  # sum up batch loss
             except StopIteration:
                 break
@@ -245,6 +249,11 @@ def eval_model(model, device, dataloader, criterion):
     else:
         print(f"Valid loss couldn't be calculated because first loaded image couldn't be read")
         valid_loss = 1e7    # Return random large value
+
+    # Calculate the loss per dimension
+    valid_preds = utils.pose_quaternion2euler(np.concatenate([p.detach().cpu() for p in valid_preds], axis=0))
+    valid_targets = utils.pose_quaternion2euler(np.concatenate([t.detach().cpu() for t in valid_targets], axis=0))
+    valid_loss_per_dim = utils_data.get_loss_per_axis(valid_preds, valid_targets)
 
     # Version with the warning (runs VERY SLOWLY)
     """
@@ -275,7 +284,7 @@ def eval_model(model, device, dataloader, criterion):
     valid_loss /= (len(dataloader.dataset) - nb_invalid_imgs)
     """
 
-    return valid_loss
+    return valid_loss, valid_loss_per_dim
 
 
 def train_model(configs, model, dataloaders, device, criterion, optimizer, scheduler):
@@ -313,12 +322,13 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
             break
         epoch_train_loss, model = train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb)
         print('Calculating the loss on the valid set')
-        epoch_valid_loss = eval_model(model, device, valid_loader, criterion)
+        epoch_valid_loss, epoch_valid_loss_per_dim = eval_model(model, device, valid_loader, criterion)
         scheduler.step()
 
         print(f'Epoch {epoch} results ----------------------')
         print(f'Train loss: {epoch_train_loss}')
         print(f'Valid loss: {epoch_valid_loss}')
+        print(f'Valid loss per dim: \n{epoch_valid_loss_per_dim}')
 
         if epoch_valid_loss < best_valid_loss:
             best_epoch = epoch
@@ -330,7 +340,13 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
         if log_wandb:
             wandb_log('epoch',
                       train_loss=epoch_train_loss,
-                      valid_loss=epoch_valid_loss)
+                      valid_loss=epoch_valid_loss,
+                      valid_x_mse=epoch_valid_loss_per_dim.loc['x', 'MSE'],
+                      valid_y_mse=epoch_valid_loss_per_dim.loc['y', 'MSE'],
+                      valid_z_mse=epoch_valid_loss_per_dim.loc['z', 'MSE'],
+                      valid_rx_mse=epoch_valid_loss_per_dim.loc['rx', 'MSE'],
+                      valid_ry_mse=epoch_valid_loss_per_dim.loc['ry', 'MSE'],
+                      valid_rz_mse=epoch_valid_loss_per_dim.loc['rz', 'MSE'])
 
     if log_wandb:
         wandb.finish()
@@ -386,6 +402,7 @@ def wandb_init(configs: dict):
             "trajectories_valid": configs['data']['trajectories_valid'],
             "rescale_pos": configs['data']['rescale_pos'],
             "subnet": configs['training']['sub_model'],
+            "weights_file_addon": configs['training']['weights_file_addon'],
             "use_pretrained": configs['training']['use_pretrained'],
             "cam_inputs": configs['training']['cam_inputs'],
             "num_units_fc": configs['training']['num_fc_hidden_units'],

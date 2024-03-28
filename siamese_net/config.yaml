@@ -1,32 +1,32 @@
 data:
   dataset_root: /data/Boudreault/mandible_data
   trajectories_train:
-    # - traj_contour0.csv
-    # - traj_contour1.csv
-    # - traj_random_qlbb.csv
-    # - traj_random_qlbt.csv
-    # - traj_random_qlfb.csv
-    # - traj_random_qlft.csv
-    # - traj_random_qrbb.csv
-    # - traj_random_qrfb.csv
-    # - traj_random_qrft.csv
-    # - traj_random_sbb.csv
-    # - traj_random_sbt.csv
-    # - traj_random_sfb.csv
-    # - traj_random_sft.csv
-    # - traj_random_slba.csv
-    # - traj_random_slbo.csv
-    # - traj_random_slf.csv
-    # - traj_random_slt.csv
-    # - traj_random_srba.csv
-    # - traj_random_srbo.csv
-    # - traj_random_srf.csv
-    # - traj_random_srt.csv
-    - traj_random0.csv
+    - traj_contour0.csv
+    - traj_contour1.csv
+    - traj_random_qlbb.csv
+    - traj_random_qlbt.csv
+    - traj_random_qlfb.csv
+    - traj_random_qlft.csv
+    - traj_random_qrbb.csv
+    - traj_random_qrfb.csv
+    - traj_random_qrft.csv
+    - traj_random_sbb.csv
+    - traj_random_sbt.csv
+    - traj_random_sfb.csv
+    - traj_random_sft.csv
+    - traj_random_slba.csv
+    - traj_random_slbo.csv
+    - traj_random_slf.csv
+    - traj_random_slt.csv
+    - traj_random_srba.csv
+    - traj_random_srbo.csv
+    - traj_random_srf.csv
+    - traj_random_srt.csv
   trajectories_valid:
+    - traj_random0.csv
     - traj_random1.csv
-    # - traj_random2.csv
   trajectories_test:
+    - traj_random2.csv
     - traj_random3.csv
   rescale_pos: True
 training:

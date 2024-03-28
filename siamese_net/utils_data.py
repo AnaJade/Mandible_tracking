@@ -106,6 +106,17 @@ class NormTransform(torch.nn.Module):
         return img.float()/255
 
 
+def create_mini_dataset(csv_path: pathlib.Path, mini_ds_size=5):
+    """
+    Create a mini version of the full annotation file
+    :param csv_path: path to the full annotation file
+    :param mini_ds_size: number of samples to keep
+    :return:
+    """
+    data = pd.read_csv(csv_path)
+    data.head(mini_ds_size).to_csv(csv_path.parent.joinpath(f'{csv_path.stem}_mini.csv'), header=True, index=False)
+
+
 def merge_annotations(dataset_root: pathlib.Path, anno_files: list) -> pd.DataFrame:
     """
     Merge the annotations from each of the desired trajectories into one dataframe
@@ -198,10 +209,28 @@ def get_dataset_min_max_pos(config: dict) -> list:
     return [min_pos, max_pos]
 
 
-def get_loss_per_axis():
+def get_loss_per_axis(preds: np.ndarray, targets: np.ndarray) -> pd.DataFrame:
+    """
+    Get the MSE for each dimension (x, y, z, rx, ry, rz)
+    :param preds: [_, 6 or 7] array with the model predictions
+    :param targets: [_, 6 or 7] array with the target values
+    :return: pandas df with the MSE per dimension
+    """
     # Return a pandas df with the RMSE in X, Y, Z, rx, r, rz
+    assert preds.shape[-1] == targets.shape[-1]
+    if preds.shape[-1] == 6:
+        dims = ['x', 'y', 'z', 'rx', 'ry', 'rz']
+    elif preds.shape[-1] == 7:
+        dims = ['x', 'y', 'z', 'q1', 'q2', 'q3', 'q4']
+    else:
+        dims = []
 
-    pass
+    loss_per_dim = {}
+    for i, dim in enumerate(dims):
+        loss_per_dim[dim] = mean_squared_error(targets[:, i], preds[:, i])
+
+    loss_per_dim = pd.DataFrame.from_dict(loss_per_dim, orient='index', columns=['MSE'])
+    return loss_per_dim
 
 
 if __name__ == '__main__':

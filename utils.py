@@ -65,6 +65,14 @@ def quaternion2euler(q: np.array) -> np.array:
     return rot_euler
 
 
+def pose_quaternion2euler(pose_q: np.ndarray) -> np.ndarray:
+    q = pose_q[:, -4:]
+    r_euler = quaternion2euler(q)
+    pose_euler = np.concatenate([pose_q[:, :3], r_euler], axis=1)
+
+    return pose_euler
+
+
 if __name__ == '__main__':
     config_file = pathlib.Path("data_prep/data_config.yaml")
     configs = load_configs(config_file)
