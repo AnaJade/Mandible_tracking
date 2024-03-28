@@ -50,7 +50,7 @@ class SiameseNetwork(nn.Module):
         self.fc = nn.Sequential(
             nn.Linear(self.subnet_output_units * self.num_subnets, self.nb_hidden),
             nn.ReLU(inplace=True),
-            nn.Linear(self.nb_hidden, 7),   # Output set to 7 for 3 position and 4 orientation variables
+            nn.Linear(self.nb_hidden, 7),  # Output set to 7 for 3 position and 4 orientation variables
         )
         self.fc.apply(self.init_weights)
 
@@ -86,7 +86,7 @@ class SiameseNetwork(nn.Module):
                 self.subnet = EfficientNet.from_name(self.subnet_name)
             # Get subnet output size
             # TODO: Find a better way to calculate the nb of output units
-            dummy_input = torch.randn(self.input_shape)    # Input shape of the images
+            dummy_input = torch.randn(self.input_shape)  # Input shape of the images
             subnet_output = self.forward_subnet(dummy_input)
             self.subnet_output_units = subnet_output.shape[-1]
         else:
@@ -97,7 +97,7 @@ class SiameseNetwork(nn.Module):
     def forward_subnet(self, x):
         # x shape: [batch, 3, 1200, 1920], dtype=torch.float32
         if 'resnet' in self.subnet_name:
-            output = self.subnet(x)     # Shape: [batch, # feature maps, 1, 1]
+            output = self.subnet(x)  # Shape: [batch, # feature maps, 1, 1]
             output = output.view(output.size()[0], -1)  # Shape: [batch, # feature maps], dtype=torch.float32
         elif 'efficientnet' in self.subnet_name:
             output = self.subnet.extract_features(x)
@@ -130,35 +130,44 @@ class SiameseNetwork(nn.Module):
 def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=False):
     model.train()
     epoch_loss = 0
+    nb_invalid_imgs = 0
+
     for batch_idx, (images, targets) in tqdm(enumerate(train_loader)):
-        images = [img.to(device) for img in images]
-        targets = targets.to(device)
-        optimizer.zero_grad()
-        outputs = model(images)
-        # Reshape outputs/targets if needed
-        if outputs.shape != targets.shape:
-            outputs = outputs.reshape([-1, 7])
-            targets = targets.reshape([-1, 7])
-        batch_loss = criterion(outputs, targets)    # .type(torch.float32)
-        batch_loss.backward()
-        optimizer.step()
+        # Check if any images in the batch couldn't be read
+        #   Images: [cam batch_img_tensor for cam in cameras] -> batch_img_tensor.shape = [batch, 3, 1200, 1920]
+        img_cam0 = images[0]
+        img_cam0 = img_cam0.reshape([img_cam0.shape[0], -1])
+        sum_img_cam0 = torch.sum(img_cam0, dim=1)
+        usable_imgs = (sum_img_cam0 != 0).flatten()
+        nb_invalid_imgs += (sum_img_cam0 == 0).sum()
+        if not torch.any(usable_imgs):
+            continue
+        else:
+            # Remove non-valid images
+            images = [img[usable_imgs, ...] for img in images]
+            targets = targets[usable_imgs, ...]
+            # Train as usual
+            images = [img.to(device) for img in images]
+            targets = targets.to(device)
+            optimizer.zero_grad()
+            outputs = model(images)
+            # Reshape outputs/targets if needed
+            if outputs.shape != targets.shape:
+                outputs = outputs.reshape([-1, 7])
+                targets = targets.reshape([-1, 7])
+            batch_loss = criterion(outputs, targets)  # .type(torch.float32)
+            batch_loss.backward()
+            optimizer.step()
 
-        # Log batch loss
-        if log_wandb:
-            wandb_log('batch', train_loss=batch_loss.item())
+            # Log batch loss
+            if log_wandb:
+                wandb_log('batch', train_loss=batch_loss.item())
 
-        # Update epoch loss
-        epoch_loss = batch_loss.sum().item()
-
-        # For debugging purposes, save model
-        """
-        if batch_idx == 40:
-            weights_file = f"efficientnetb0_2cams_256"
-            torch.save(model.state_dict(), f"siamese_net/model_weights/{weights_file}_b40.pth")
-        """
+            # Update epoch loss
+            epoch_loss = batch_loss.sum().item()
 
     # Calculate final epoch loss
-    epoch_loss /= len(train_loader.dataset)
+    epoch_loss /= (len(train_loader.dataset) - nb_invalid_imgs)
 
     return epoch_loss, model
 
@@ -166,18 +175,33 @@ def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=F
 def eval_model(model, device, dataloader, criterion):
     model.eval()
     valid_loss = 0
+    nb_invalid_imgs = 0
     with torch.no_grad():
         for (images, targets) in tqdm(dataloader):
-            images = [img.to(device) for img in images]
-            targets = targets.to(device)
-            outputs = model(images)     # .squeeze()
-            # Reshape outputs/targets if needed
-            if outputs.shape != targets.shape:
-                outputs = outputs.reshape([-1, 7])
-                targets = targets.reshape([-1, 7])
-            valid_loss += criterion(outputs, targets).sum().item()  # sum up batch loss
+            # Check if any images in the batch couldn't be read
+            #   Images: [cam batch_img_tensor for cam in cameras] -> batch_img_tensor.shape = [batch, 3, 1200, 1920]
+            img_cam0 = images[0]
+            img_cam0 = img_cam0.reshape([img_cam0.shape[0], -1])
+            sum_img_cam0 = torch.sum(img_cam0, dim=1)
+            usable_imgs = (sum_img_cam0 != 0).flatten()
+            nb_invalid_imgs += (sum_img_cam0 == 0).sum()
+            if not torch.any(usable_imgs):
+                continue
+            else:
+                # Remove non-valid images
+                images = [img[usable_imgs, ...] for img in images]
+                targets = targets[usable_imgs, ...]
+                # Evaluate as usual
+                images = [img.to(device) for img in images]
+                targets = targets.to(device)
+                outputs = model(images)  # .squeeze()
+                # Reshape outputs/targets if needed
+                if outputs.shape != targets.shape:
+                    outputs = outputs.reshape([-1, 7])
+                    targets = targets.reshape([-1, 7])
+                valid_loss += criterion(outputs, targets).sum().item()  # sum up batch loss
 
-    valid_loss /= len(dataloader.dataset)
+    valid_loss /= (len(dataloader.dataset) - nb_invalid_imgs)
 
     return valid_loss
 
@@ -206,7 +230,7 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
         wandb_init(configs)
 
     # Train model
-    best_valid_loss = 1e6     # Random large number
+    best_valid_loss = 1e6  # Random large number
     best_epoch = 0
     best_model_weights = copy.deepcopy(model.state_dict())
     for epoch in range(num_epochs):
@@ -340,4 +364,3 @@ if __name__ == '__main__':
     subnet_output = model.forward_subnet(img)
 
     print(f'Shape of subnet output: {subnet_output.shape}')
-

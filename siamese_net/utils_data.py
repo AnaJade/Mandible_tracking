@@ -1,4 +1,5 @@
 import pathlib
+import warnings
 
 import matplotlib
 matplotlib.use("TkAgg")
@@ -53,20 +54,29 @@ class MandibleDataset(Dataset):
         img_paths = [self.root.joinpath(cam).joinpath(f"{img_id}_{self.cameras[cam]}.jpg") for cam in
                      self.cam_inputs]
         # Read images
-        images = [read_image(img_path.__str__()) for img_path in img_paths]
+        try:
+            images = [read_image(img_path.__str__()) for img_path in img_paths]
+        except RuntimeError:
+            # Return empty tensors if the image is unreadable
+            # TODO: Find better way to get true image dim
+            images = len(img_paths)*[torch.zeros([3, 1200, 1920])]
+            img_pose = torch.zeros(1, 7)
+            warning_str = f"\nOne of {[img_path.stem for img_path in img_paths]} doesn't exist"
+            warnings.warn(warning_str)
 
-        # Re-scale position to be between -1 and 1
-        if self.min_max_pos is not None:
-            img_pose = normalize_position(torch.Tensor(img_pose), self.pos_min, self.pos_max)
+        if sum(images[0].flatten()) > 0:
+            # Re-scale position to be between -1 and 1
+            if self.min_max_pos is not None:
+                img_pose = normalize_position(torch.Tensor(img_pose), self.pos_min, self.pos_max)
 
-        # Apply transforms
-        if self.transforms:
-            images = [self.transforms(image) for image in images]
-        
-        # Reshape target if needed
-        if len(img_pose.shape) > 2:
-            img_pose = np.squeeze(img_pose)
-        
+            # Apply transforms
+            if self.transforms:
+                images = [self.transforms(image) for image in images]
+
+            # Reshape target if needed
+            if len(img_pose.shape) > 2:
+                img_pose = np.squeeze(img_pose)
+
         return images, np.float64(img_pose)
 
 

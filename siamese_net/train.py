@@ -85,8 +85,10 @@ if __name__ == '__main__':
     dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, min_max_pos, transforms)
 
     print("Creating dataloader...")
-    dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=True, num_workers=4)
-    dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=4)
+    # dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=True, num_workers=4)
+    # dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=4)
+    dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=False, num_workers=0)
+    dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=0)
 
     # Define the model
     model = SiameseNetwork(configs)
