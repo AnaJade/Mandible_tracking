@@ -71,15 +71,14 @@ if __name__ == '__main__':
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
     dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
     # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
-    # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
-    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
+    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
+    # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
 
     # Define the model
     print("Loading model...")
     model = SiameseNetwork(configs)
     # Load trained weights
-    # model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}.pth"))
-    model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}_fully_trained.pth"))    # Remove after debug
+    model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}.pth"))
     model.to(device)
 
     print("Performing inference...")

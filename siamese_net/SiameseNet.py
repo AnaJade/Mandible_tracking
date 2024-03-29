@@ -332,6 +332,7 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
 
         if epoch_valid_loss < best_valid_loss:
             best_epoch = epoch
+            best_valid_loss = epoch_valid_loss
             best_model_weights = copy.deepcopy(model.state_dict())
             # Save model
             torch.save(model.state_dict(), f"siamese_net/model_weights/{weights_file}.pth")
