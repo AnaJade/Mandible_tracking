@@ -117,7 +117,7 @@ class SiameseNetwork(nn.Module):
             output = self.avg_pooling(output)  # Shape: [batch, # feature maps, 1, 1]
             output = output.view(output.size()[0], -1)  # Shape: [batch, # feature maps], dtype=torch.float32
         elif 'efficientnet' in self.subnet_name:
-            output = self.extract_features(x)
+            output = self.subnet.extract_features(x)
             output = self.avg_pooling(output)
             output = output.view(output.size()[0], -1)  # Shape: [batch, # feature maps], dtype=torch.float32
         else:
@@ -425,7 +425,7 @@ def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
 
 
 def overlay_activation_map(imgs: list[np.ndarray], heatmaps: list[np.ndarray]) -> list:
-    heatmaps = [np.maximum(np.mean(heatmap, axis=2), 0)/np.max(heatmap) for heatmap in heatmaps]
+    heatmaps = [np.maximum(np.mean(heatmap, axis=0), 0)/np.max(heatmap) for heatmap in heatmaps]
     heatmaps = [cv2.resize(heatmap, (imgs[0].shape[1], imgs[0].shape[0])) for heatmap in heatmaps]
     heatmaps = [np.uint8(255*heatmap) for heatmap in heatmaps]
     heatmaps = [cv2.applyColorMap(heatmap, cv2.COLORMAP_JET) for heatmap in heatmaps]
@@ -435,9 +435,9 @@ def overlay_activation_map(imgs: list[np.ndarray], heatmaps: list[np.ndarray]) -
     return overlayed_imgs
 
 
-def get_feature_maps(model: SiameseNetwork, device, dataloader):
+def get_feature_maps(model: SiameseNetwork, device, dataloader, cam_inputs):
     with torch.no_grad():
-        for (images, targets) in tqdm(dataloader):
+        for i, (images, targets) in tqdm(enumerate(dataloader)):
             images = [img.to(device) for img in images]
             outputs = model.extract_features_subnets(images)
             # Reformat images
@@ -447,14 +447,18 @@ def get_feature_maps(model: SiameseNetwork, device, dataloader):
             # Overlay feature maps
             heatmap_imgs = overlay_activation_map(images, outputs)
             # Display results
-            plt.figure(figsize=(3 * len(heatmap_imgs), 3))
-            for i, img in enumerate(heatmap_imgs):
-                plt.subplot(1, len(heatmap_imgs), i + 1)
+            heatmaps = [np.maximum(np.mean(heatmap, axis=0), 0) / np.max(heatmap) for heatmap in outputs]
+            plt.figure(figsize=(3 * len(heatmap_imgs), 5))
+            img_name = dataloader.dataset.img_names[0]
+            for i, (img, heatmap, cam) in enumerate(zip(heatmap_imgs, heatmaps, cam_inputs)):
+                plt.subplot(2, len(heatmap_imgs), 2*i + 1)
                 plt.imshow(img)
                 plt.axis('off')
-                # plt.title(cam)
-            # plt_title = f'Position: {np.round(lbl[:3], 3)}\nRx: {euler[0]}   Ry: {euler[1]}    Rz: {euler[2]}'
-            # plt.suptitle(plt_title)
+                plt.subplot(2, len(heatmap_imgs), 2*i + 2)
+                plt.imshow(heatmap)
+                plt.axis('off')
+                plt.title(cam)
+            plt.suptitle(img_name)
             plt.tight_layout()
             plt.show(block=True)
 
