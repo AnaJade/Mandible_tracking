@@ -6,9 +6,11 @@ import pathlib
 import copy
 import time
 
+import cv2
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 import wandb
 import torch
@@ -62,15 +64,14 @@ class SiameseNetwork(nn.Module):
     def resnet18_init(self):
         # get resnet model
         if self.use_pretrained:
-            self.subnet = torchvision.models.resnet18(
-                weights=models.ResNet18_Weights.DEFAULT)
+            self.subnet = torchvision.models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
         else:
             self.subnet = torchvision.models.resnet18(weights=None)
 
         self.subnet_output_units = self.subnet.fc.in_features
 
-        # remove the last layer of resnet18 (linear layer which is after avgpool layer)
-        self.subnet = torch.nn.Sequential(*(list(self.subnet.children())[:-1]))
+        # remove the last 2 layers of resnet18 (avg pool and linear layer) to keep only the feature extraction layers
+        self.subnet = torch.nn.Sequential(*(list(self.subnet.children())[:-2]))
 
         # Load weights if needed
         if not self.use_pretrained:
@@ -94,13 +95,29 @@ class SiameseNetwork(nn.Module):
             # Available versions: 'efficientnet-b{i}', with i = 0, ..., 7
             raise SystemExit(1)
 
+    def extract_features(self, x):
+        # x shape: [batch, 3, 1200, 1920], dtype=torch.float32
+        if 'resnet' in self.subnet_name:
+            output = self.subnet(x)
+        elif 'efficientnet' in self.subnet_name:
+            output = self.subnet.extract_features(x)
+        else:
+            output = torch.Tensor()
+        return output
+
+    def extract_features_subnets(self, imgs):
+        # Image feature extraction
+        outputs = [self.extract_features(img) for img in imgs]
+        return outputs
+
     def forward_subnet(self, x):
         # x shape: [batch, 3, 1200, 1920], dtype=torch.float32
         if 'resnet' in self.subnet_name:
-            output = self.subnet(x)  # Shape: [batch, # feature maps, 1, 1]
+            output = self.extract_features(x)
+            output = self.avg_pooling(output)  # Shape: [batch, # feature maps, 1, 1]
             output = output.view(output.size()[0], -1)  # Shape: [batch, # feature maps], dtype=torch.float32
         elif 'efficientnet' in self.subnet_name:
-            output = self.subnet.extract_features(x)
+            output = self.extract_features(x)
             output = self.avg_pooling(output)
             output = output.view(output.size()[0], -1)  # Shape: [batch, # feature maps], dtype=torch.float32
         else:
@@ -251,8 +268,10 @@ def eval_model(model, device, dataloader, criterion):
         valid_loss = 1e7    # Return random large value
 
     # Calculate the loss per dimension
-    valid_preds = utils.pose_quaternion2euler(np.concatenate([p.detach().cpu() for p in valid_preds], axis=0))
-    valid_targets = utils.pose_quaternion2euler(np.concatenate([t.detach().cpu() for t in valid_targets], axis=0))
+    # valid_preds = utils.pose_quaternion2euler(np.concatenate([p.detach().cpu() for p in valid_preds], axis=0))
+    # valid_targets = utils.pose_quaternion2euler(np.concatenate([t.detach().cpu() for t in valid_targets], axis=0))
+    valid_preds = np.concatenate([p.detach().cpu() for p in valid_preds], axis=0)
+    valid_targets = np.concatenate([t.detach().cpu() for t in valid_targets], axis=0)
     valid_loss_per_dim = utils_data.get_loss_per_axis(valid_preds, valid_targets)
 
     # Version with the warning (runs VERY SLOWLY)
@@ -339,15 +358,27 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
 
         # Log results
         if log_wandb:
-            wandb_log('epoch',
-                      train_loss=epoch_train_loss,
-                      valid_loss=epoch_valid_loss,
-                      valid_x_mse=epoch_valid_loss_per_dim.loc['x', 'MSE'],
-                      valid_y_mse=epoch_valid_loss_per_dim.loc['y', 'MSE'],
-                      valid_z_mse=epoch_valid_loss_per_dim.loc['z', 'MSE'],
-                      valid_rx_mse=epoch_valid_loss_per_dim.loc['rx', 'MSE'],
-                      valid_ry_mse=epoch_valid_loss_per_dim.loc['ry', 'MSE'],
-                      valid_rz_mse=epoch_valid_loss_per_dim.loc['rz', 'MSE'])
+            if len(epoch_valid_loss_per_dim) == 6:
+                wandb_log('epoch',
+                          train_loss=epoch_train_loss,
+                          valid_loss=epoch_valid_loss,
+                          valid_x_mse=epoch_valid_loss_per_dim.loc['x', 'MSE'],
+                          valid_y_mse=epoch_valid_loss_per_dim.loc['y', 'MSE'],
+                          valid_z_mse=epoch_valid_loss_per_dim.loc['z', 'MSE'],
+                          valid_rx_mse=epoch_valid_loss_per_dim.loc['rx', 'MSE'],
+                          valid_ry_mse=epoch_valid_loss_per_dim.loc['ry', 'MSE'],
+                          valid_rz_mse=epoch_valid_loss_per_dim.loc['rz', 'MSE'])
+            elif len(epoch_valid_loss_per_dim) == 7:
+                wandb_log('epoch',
+                          train_loss=epoch_train_loss,
+                          valid_loss=epoch_valid_loss,
+                          valid_x_mse=epoch_valid_loss_per_dim.loc['x', 'MSE'],
+                          valid_y_mse=epoch_valid_loss_per_dim.loc['y', 'MSE'],
+                          valid_z_mse=epoch_valid_loss_per_dim.loc['z', 'MSE'],
+                          valid_q1_mse=epoch_valid_loss_per_dim.loc['q1', 'MSE'],
+                          valid_q2_mse=epoch_valid_loss_per_dim.loc['q2', 'MSE'],
+                          valid_q3_mse=epoch_valid_loss_per_dim.loc['q3', 'MSE'],
+                          valid_q4_mse=epoch_valid_loss_per_dim.loc['q4', 'MSE'])
 
     if log_wandb:
         wandb.finish()
@@ -391,6 +422,64 @@ def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
     print(f'Max inference time: {np.max(inference_time)}')
 
     return preds
+
+
+def overlay_activation_map(imgs: list[np.ndarray], heatmaps: list[np.ndarray]) -> list:
+    heatmaps = [np.maximum(np.mean(heatmap, axis=2), 0)/np.max(heatmap) for heatmap in heatmaps]
+    heatmaps = [cv2.resize(heatmap, (imgs[0].shape[1], imgs[0].shape[0])) for heatmap in heatmaps]
+    heatmaps = [np.uint8(255*heatmap) for heatmap in heatmaps]
+    heatmaps = [cv2.applyColorMap(heatmap, cv2.COLORMAP_JET) for heatmap in heatmaps]
+    overlayed_imgs = [heatmap * 0.4 + img for heatmap, img in zip(heatmaps, imgs)]
+    overlayed_imgs = [np.uint8((img/np.max(img))*255) for img in overlayed_imgs]
+
+    return overlayed_imgs
+
+
+def get_feature_maps(model: SiameseNetwork, device, dataloader):
+    with torch.no_grad():
+        for (images, targets) in tqdm(dataloader):
+            images = [img.to(device) for img in images]
+            outputs = model.extract_features_subnets(images)
+            # Reformat images
+            images = [img[0, ...].detach().cpu().numpy() for img in images]
+            outputs = [output[0, ...].detach().cpu().numpy() for output in outputs]
+            images = [(img.transpose((1, 2, 0)) * 255).astype('uint8') for img in images]
+            # Overlay feature maps
+            heatmap_imgs = overlay_activation_map(images, outputs)
+            # Display results
+            plt.figure(figsize=(3 * len(heatmap_imgs), 3))
+            for i, img in enumerate(heatmap_imgs):
+                plt.subplot(1, len(heatmap_imgs), i + 1)
+                plt.imshow(img)
+                plt.axis('off')
+                # plt.title(cam)
+            # plt_title = f'Position: {np.round(lbl[:3], 3)}\nRx: {euler[0]}   Ry: {euler[1]}    Rz: {euler[2]}'
+            # plt.suptitle(plt_title)
+            plt.tight_layout()
+            plt.show(block=True)
+
+            """
+            window_name = f'{img_path.stem}'
+            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)  # Create a named window
+            # cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)  # Full screen
+            cv2.setWindowProperty(window_name, cv2.WINDOW_NORMAL, cv2.WND_PROP_ASPECT_RATIO)  # See file name
+            # cv2.moveWindow(window_name, 0, 0)  # Move it to (40,30)
+            cv2.imshow(window_name, img)
+            key = cv2.waitKey(0)
+
+            if key == ord('j'):
+                index -= 1
+            elif key == ord('l'):
+                index += 1
+            elif key == ord('q'):
+                break
+
+            index = index % nb_imgs
+
+            cv2.destroyAllWindows()
+            """
+
+    return 0
 
 
 def wandb_init(configs: dict):
