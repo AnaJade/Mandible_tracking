@@ -2,6 +2,7 @@
 Code to build a siamese network using 3 sub-networks and output a 7D [pos_x, pos_y, pos_z, q1, q2, q3, q4] tensor
 Based on the PyTorch example: https://github.com/pytorch/examples/blob/main/siamese_network/main.py
 """
+import math
 import pathlib
 import copy
 import time
@@ -10,7 +11,10 @@ import cv2
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import matplotlib
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
+from scipy.interpolate import griddata
 
 import wandb
 import torch
@@ -425,17 +429,29 @@ def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
 
 
 def overlay_activation_map(imgs: list[np.ndarray], heatmaps: list[np.ndarray]) -> list:
+    """
+    Format the heatmaps and overlay it on the original image
+    :param imgs: list with the original images
+    :param heatmaps: list with the subnet outputs
+    :return: list with the superimposed images
+    """
     heatmaps = [np.maximum(np.mean(heatmap, axis=0), 0)/np.max(heatmap) for heatmap in heatmaps]
     heatmaps = [cv2.resize(heatmap, (imgs[0].shape[1], imgs[0].shape[0])) for heatmap in heatmaps]
-    heatmaps = [np.uint8(255*heatmap) for heatmap in heatmaps]
+    heatmaps = [np.uint8(255 * (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))) for heatmap in heatmaps]
     heatmaps = [cv2.applyColorMap(heatmap, cv2.COLORMAP_JET) for heatmap in heatmaps]
-    overlayed_imgs = [heatmap * 0.4 + img for heatmap, img in zip(heatmaps, imgs)]
-    overlayed_imgs = [np.uint8((img/np.max(img))*255) for img in overlayed_imgs]
-
+    overlayed_imgs = [cv2.addWeighted(heatmap, 0.35, img, 0.65, 0.0) for heatmap, img in zip(heatmaps, imgs)]
     return overlayed_imgs
 
 
 def get_feature_maps(model: SiameseNetwork, device, dataloader, cam_inputs):
+    """
+    Get the saliency maps for images in the given dataloader
+    :param model: Siamese model with the weights preloaded
+    :param device: device used to get feature maps
+    :param dataloader: dataloader with the images
+    :param cam_inputs: list with the cameras being used
+    :return:
+    """
     with torch.no_grad():
         for i, (images, targets) in tqdm(enumerate(dataloader)):
             images = [img.to(device) for img in images]
@@ -448,42 +464,109 @@ def get_feature_maps(model: SiameseNetwork, device, dataloader, cam_inputs):
             heatmap_imgs = overlay_activation_map(images, outputs)
             # Display results
             heatmaps = [np.maximum(np.mean(heatmap, axis=0), 0) / np.max(heatmap) for heatmap in outputs]
-            plt.figure(figsize=(3 * len(heatmap_imgs), 5))
-            img_name = dataloader.dataset.img_names[0]
-            for i, (img, heatmap, cam) in enumerate(zip(heatmap_imgs, heatmaps, cam_inputs)):
-                plt.subplot(2, len(heatmap_imgs), 2*i + 1)
-                plt.imshow(img)
-                plt.axis('off')
-                plt.subplot(2, len(heatmap_imgs), 2*i + 2)
-                plt.imshow(heatmap)
-                plt.axis('off')
+            plt.figure(figsize=(3 * len(heatmap_imgs), 7))
+            img_name = dataloader.dataset.img_names[i]
+            for j, (heatmap_img, heatmap, img, cam) in enumerate(zip(heatmap_imgs, heatmaps, images, cam_inputs)):
+                plt.subplot(3, len(heatmap_imgs), j+1)
                 plt.title(cam)
-            plt.suptitle(img_name)
+                plt.imshow(heatmap_img)
+                plt.axis('off')
+                plt.subplot(3, len(heatmap_imgs), j+4)
+                if j == 0:
+                    plt.title('Subnet outputs:', loc='left')
+                plt.imshow(heatmap)
+                # plt.axis('off')
+                plt.subplot(3, len(heatmap_imgs), j+7)
+                if j == 0:
+                    plt.title('Input images:', loc='left')
+                plt.imshow(img)
+                # plt.axis('off')
+            plt.suptitle(f'{img_name} saliency map')
             plt.tight_layout()
             plt.show(block=True)
 
-            """
-            window_name = f'{img_path.stem}'
-            cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)  # Create a named window
-            # cv2.setWindowProperty(window_name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)  # Full screen
-            cv2.setWindowProperty(window_name, cv2.WINDOW_NORMAL, cv2.WND_PROP_ASPECT_RATIO)  # See file name
-            # cv2.moveWindow(window_name, 0, 0)  # Move it to (40,30)
-            cv2.imshow(window_name, img)
-            key = cv2.waitKey(0)
 
-            if key == ord('j'):
-                index -= 1
-            elif key == ord('l'):
-                index += 1
-            elif key == ord('q'):
-                break
+def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plane, grid_size):
+    """
+    Get the average error of every image per "bin" in the given plane
+    :param model: Siamese model with the weights preloaded
+    :param device: device used to get feature maps
+    :param dataloader: dataloader (pre-filtered) with the images
+    :param min_max_pos: min and max possible values in x, y, z as a list: [[xmin, ymin, zmin], [xmax, ymax, zmax]]
+    :param plane: string that is either 'xy', 'xz', or 'yz'
+    :param grid_size: number of sections in which the plane's 2 axis will be split
+    :return:
+    """
+    # Parse plane parameter
+    plane = [*plane]
+    mse_axis = [ax for ax in ['x', 'y', 'z'] if ax not in plane][0]
+    plane_axis_id = [i for i, ax in enumerate(['x', 'y', 'z']) if ax in plane]
+    mse_axis_id = [i for i, ax in enumerate(['x', 'y', 'z']) if ax not in plane][0]
 
-            index = index % nb_imgs
+    # Get the MSE in the other axis
+    try:
+        plane_results = pd.read_csv(f"temp_plane{"".join(plane)}_results.csv")  # Remove after debug
+    except FileNotFoundError:
 
-            cv2.destroyAllWindows()
-            """
+        plane_results = []
+        with torch.no_grad():
+            for (images, targets) in tqdm(dataloader):
+                images = [img.to(device) for img in images]
+                output = model(images).squeeze()
+                # Rescale to true position
+                if min_max_pos is not None:
+                    preds = utils_data.rescale_position(output[None, :].detach().cpu().numpy(),
+                                                        np.array(min_max_pos[0]), np.array(min_max_pos[1]))
+                    targets = utils_data.rescale_position(targets[0, ...].detach().cpu().numpy(),
+                                                          np.array(min_max_pos[0]), np.array(min_max_pos[1]))
+                # Get MSE on remaining axis
+                mse = mean_squared_error(targets[:, mse_axis_id], preds[:, mse_axis_id])
+                plane_results.append({plane[0]: targets[0, plane_axis_id[0]],
+                                      plane[1]: targets[0, plane_axis_id[1]],
+                                      f'mse_{mse_axis}': mse})
+        plane_results = pd.DataFrame(plane_results)
+        plane_results.to_csv(f"temp_plane{"".join(plane)}_results.csv", index=False)     # Remove after debug
 
-    return 0
+    # Create grid limits
+    min_max_ax0 = [math.floor(plane_results[plane[0]].min()), math.ceil(plane_results[plane[0]].max())]
+    min_max_ax1 = [math.floor(plane_results[plane[1]].min()), math.ceil(plane_results[plane[1]].max())]
+    bins_ax0 = list(np.ceil(np.linspace(start=min_max_ax0[0], stop=min_max_ax0[1], num=grid_size+1)).astype(np.int32))
+    bins_ax1 = list(np.ceil(np.linspace(start=min_max_ax1[0], stop=min_max_ax1[1], num=grid_size+1)).astype(np.int32))
+    bin_centers_ax0 = [(bins_ax0[i] + bins_ax0[i+1])/2 for i in range(grid_size)]
+    bin_centers_ax1 = [(bins_ax1[i] + bins_ax1[i+1])/2 for i in range(grid_size)]
+    bin_centers_ax1.reverse()   # Needed to have the vertical axis thr right way on the graph
+
+    # Split the images into the grid
+    error_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
+    for i, bin0_id in enumerate(bin_centers_ax0):
+        # Filter to keep only relevant images based on ax 0
+        bin_ax0_results = plane_results[plane_results[plane[0]].between(bins_ax0[i], bins_ax0[i+1])]
+        for j, bin1_id in enumerate(bin_centers_ax1):
+            # Filter to keep only relevant images based on ax 1
+            bin_results = bin_ax0_results[bin_ax0_results[plane[1]].between(bins_ax1[j], bins_ax1[j+1])]
+            # Calculate average error
+            error_grid.loc[bin1_id, bin0_id] = bin_results[f'mse_{mse_axis}'].mean()
+    # Fill NaN values with numpy nan (needed to plot the results)
+    error_grid.fillna(np.nan, inplace=True)
+    print(error_grid)
+
+    # Plot and show results
+    grid_data = error_grid.to_numpy()
+    cmap = matplotlib.cm.get_cmap('viridis')
+    cmap.set_bad(color='white')
+    plt.imshow(grid_data, extent=tuple(min_max_ax0 + min_max_ax1), cmap=cmap)
+    # Overlay values
+    for (i, j), mse in np.ndenumerate(grid_data):
+        plt.text(bin_centers_ax0[j], bin_centers_ax1[i], '{:0.2f}'.format(mse),
+                 bbox=dict(facecolor='white', alpha=0.5),
+                 ha='center', va='center')
+    plt.colorbar()
+    plt.xlabel(plane[0])
+    plt.ylabel(plane[1])
+    plt.title(f'Average {mse_axis.upper()} position MSE in the {"".join(plane).upper()} plane')
+    plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
+    plt.tight_layout()
+    plt.show(block=True)
 
 
 def wandb_init(configs: dict):

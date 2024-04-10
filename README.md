@@ -1,6 +1,24 @@
 # Mandible Tracking
 Mandible pose tracking using a siamese network and RGB images.
 
+## Packages and env setup
+This code was tested using the following configuration: 
+* PyTorch 2.2.2
+* Cuda 11.8
+* Nvidia driver 535
+
+To install PyTorch, create a conda env and run `conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia`.
+Also install the following packages: 
+* matplotlib: `conda install matplotlib`
+* opencv: `pip install opencv-python`
+* pandas: `conda install pandas`
+* sklearn: `conda install scikit-learn`
+* tqdm: `conda install tqdm`
+* wandb: `pip install wandb`
+
+To log into wandb, run `wandb login [api key]`
+
+
 ## Config file parameters
 The configuration file contains 3 main section: data, training and wandb.
 
@@ -72,6 +90,7 @@ The annotations are saved in `.csv` files using the following format:
 
 ## Data preprocessing
 The XYZ position values will be scaled to fit between [-1, 1], which is also the range for the quaternion values.
+Quaternions were kept for training, since the conversion to Euler angles isn't deterministic.
 
 ## Running the code on Ubuntu
 **Bash file modifications**

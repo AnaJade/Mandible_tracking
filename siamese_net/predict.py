@@ -2,6 +2,7 @@ import argparse
 import pathlib
 
 import numpy as np
+import pandas as pd
 import torch
 import torchvision
 from torch.utils.data import DataLoader
@@ -53,7 +54,8 @@ if __name__ == '__main__':
     if rescale_pos:
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
         # min_max_pos = [[299, 229, 279], [401, 311, 341]]
-        min_max_pos = utils_data.get_dataset_min_max_pos(configs)
+        min_max_pos = [[254, 203, 234], [472, 335, 362]]    # Min and max values for all trajectories
+        # min_max_pos = utils_data.get_dataset_min_max_pos(configs)
     else:
         min_max_pos = None
 
@@ -71,8 +73,8 @@ if __name__ == '__main__':
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
     dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
     # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
-    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
-    # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
+    # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
+    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
 
     # Define the model
     print("Loading model...")
@@ -89,9 +91,9 @@ if __name__ == '__main__':
     print(f'Test loss: {test_loss}')
 
     # Calculate the loss per dimension
-    annotations_test_euler = utils.pose_quaternion2euler(annotations_test.to_numpy())
-    preds_euler = utils.pose_quaternion2euler(preds.to_numpy())
-    loss_per_dim = utils_data.get_loss_per_axis(annotations_test_euler, preds_euler)
+    # annotations_test_euler = utils.pose_quaternion2euler(annotations_test.to_numpy())
+    # preds_euler = utils.pose_quaternion2euler(preds.to_numpy())
+    loss_per_dim = utils_data.get_loss_per_axis(annotations_test.to_numpy(), preds.to_numpy())
     print(f'Loss per dimension: \n{loss_per_dim}')
 
     # Calculate the loss on the normalized data
@@ -106,8 +108,18 @@ if __name__ == '__main__':
     preds_df = annotations_test.copy()
     preds_df.iloc[:, :] = preds
 
+    # Append position difference
+    pos_diff = annotations_test.to_numpy()[:, :3] - preds.to_numpy()[:, :3]
+    pos_diff = pd.DataFrame(pos_diff, columns=['delta_x', 'delta_y', 'delta_z'], index=preds_df.index)
+    preds_df = pd.concat([preds_df, pos_diff], axis=1)
+
+    # Append the position, orientation and total MSE for each image
+    mse_per_image = utils_data.get_loss_per_img(annotations_test.to_numpy(), preds.to_numpy())
+    mse_per_image.index = preds_df.index
+    preds_df = pd.concat([preds_df, mse_per_image], axis=1)
+
     # Save preds as csv
     print("Saving results...")
-    preds_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
-    preds_df.to_csv(f"siamese_net/preds/{preds_file}.csv")
+    preds_df.to_csv(f"siamese_net/preds/{weights_file}.csv")
+    print(preds_df.head(5))
 

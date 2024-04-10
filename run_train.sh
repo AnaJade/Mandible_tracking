@@ -10,4 +10,4 @@ conda activate pytorch-env
 # echo $(pwd)
 
 # Run train script
-PYTHONPATH=/home/Boudreault/Documents/Mandible_tracking python siamese_net/train.py siamese_net/config.yaml
+PYTHONPATH=/home/Boudreault/Dokumente/Mandible_tracking python siamese_net/train.py siamese_net/config.yaml

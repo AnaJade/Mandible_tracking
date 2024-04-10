@@ -15,7 +15,7 @@ from torchvision.transforms import v2
 import utils
 import utils_data
 from utils_data import MandibleDataset, NormTransform
-from SiameseNet import SiameseNetwork, get_feature_maps
+from SiameseNet import SiameseNetwork, get_plane_error
 
 
 if __name__ == '__main__':
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     if rescale_pos:
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
         # min_max_pos = [[299, 229, 279], [401, 311, 341]]
-        min_max_pos = [[254, 203, 234], [472, 335, 362]]    # Min and max values for all trajectories
+        min_max_pos = [[254, 203, 234], [472, 335, 362]]
         # min_max_pos = utils_data.get_dataset_min_max_pos(configs)
     else:
         min_max_pos = None
@@ -73,18 +73,20 @@ if __name__ == '__main__':
     annotations_valid = utils_data.merge_annotations(dataset_root, anno_paths_valid)
     annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
 
+    """
     # Create dataset object
     print("Initializing dataset object...")
     # Create dataset objects
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
-    dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, min_max_pos, transforms)
-    dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, min_max_pos, transforms)
-    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
+    dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, None, transforms)
+    dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, None, transforms)
+    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, None, transforms)
 
     print("Creating dataloader...")
     dataloader_train = DataLoader(dataset_train, batch_size=1, shuffle=False, num_workers=0)
     dataloader_valid = DataLoader(dataset_valid, batch_size=1, shuffle=False, num_workers=0)
     dataloader_test = DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=0)
+    """
 
     # Define the model
     print("Loading model...")
@@ -93,11 +95,32 @@ if __name__ == '__main__':
     model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}.pth"))
     model.to(device)
 
-    print("Extract features...")
-    dataloader = dataloader_train
-    get_feature_maps(model, device, dataloader, cam_inputs)
+    # Filter options
+    use_center_only = True  # whether to use images where the position of the mandible lies in the center plane
+    # axis_lim = [[358, 368], [264, 274], [293, 303]]  # Middle position based on the data (+/- 5mm)
+    # axis_lim = [[353, 373], [259, 279], [288, 308]]  # Middle position based on the data (+/- 1cm)
+    axis_lim = [[340, 360], [260, 280], [300, 320]]  # True middle position (+/- 1cm)
+    no_rot = False   # use only images with no rotations
+    rot_lim = [[0.499, 0.501], [-0.501, -0.499], [0.499, 0.501], [0.499, 0.501]]
+    # Other options
+    annotations = annotations_test
+    plane = 'yz'
+    grid_size = 5
+    print("Filtering the data...")
+    # Filter images in the dataloader to keep the ones in the center plane
+    if use_center_only:
+        annotations = utils_data.filter_imgs_per_position(annotations, None, axis=[*plane])
+    if no_rot:
+        annotations = utils_data.filter_imgs_per_rotation(annotations, None)
 
-    print()
+    print("Creating the dataloader...")
+    transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
+    dataset = MandibleDataset(dataset_root, cam_inputs, annotations, min_max_pos, transforms)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
 
-
+    print("Calculating the plane error...")
+    if len(dataloader) > 1:
+        get_plane_error(model, device, dataloader, min_max_pos, plane, grid_size)
+    else:
+        print("No images left in the dataset after filtering")
 

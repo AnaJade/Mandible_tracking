@@ -1,6 +1,6 @@
 annotations:
-  data_folder_path: C:\Users\anaja\OneDrive\Documents\Ecole\TUHH\Semester 3\Projektarbeit\Data\train_data
-  traj_name: traj_random3
-  log_name: trajrandom3.txt
+  data_folder_path: C:\Users\anaja\OneDrive\Documents\Ecole\TUHH\Semester 3\Projektarbeit\Data
+  traj_name: traj_splitYXZ_s20
+  log_name: trajsplitYXZs20.txt
 images:
   img_root: C:\Users\anaja\OneDrive\Documents\Ecole\TUHH\Semester 3\Projektarbeit\Dataset_sample

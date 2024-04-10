@@ -8,4 +8,4 @@ source /home/Boudreault/anaconda3/etc/profile.d/conda.sh
 conda activate pytorch-env
 
 # Run train script
-PYTHONPATH=/home/Boudreault/Documents/Mandible_tracking python siamese_net/predict.py siamese_net/config.yaml
+PYTHONPATH=/home/Boudreault/Dokumente/Mandible_tracking python siamese_net/predict.py siamese_net/config.yaml

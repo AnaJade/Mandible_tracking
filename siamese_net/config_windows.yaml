@@ -4,19 +4,24 @@ data:
     - traj_random0_mini.csv
     # - traj_random0.csv
   trajectories_valid:
-    - traj_random1_mini.csv
-    # - traj_random1.csv
+    - traj_random3_mini.csv
+    # - traj_random3.csv
   trajectories_test:
-    - traj_random2_mini.csv
-    # - traj_random2.csv
+    # - traj_random4_mini.csv
+    - traj_random_slbo.csv
+    - traj_random_slt.csv
+    - traj_random_srbo.csv
+    - traj_random_srt.csv
+    - traj_random4.csv
+    - traj_splitYXZ_s20.csv
   rescale_pos: True
 training:
-  sub_model: 'efficientnet-b0' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: ""  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
+  weights_file_addon: "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: True
   cam_inputs:
     - Left
-    # - Right
+    - Right
     - Side
   num_fc_hidden_units: 256
   train_bs: 2

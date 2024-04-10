@@ -209,11 +209,57 @@ def get_dataset_min_max_pos(config: dict) -> list:
     return [min_pos, max_pos]
 
 
-def get_loss_per_axis(preds: np.ndarray, targets: np.ndarray) -> pd.DataFrame:
+def filter_imgs_per_position(annotations: pd.DataFrame, axis_lim: list | None, axis=None) -> pd.DataFrame:
     """
-    Get the MSE for each dimension (x, y, z, rx, ry, rz)
-    :param preds: [_, 6 or 7] array with the model predictions
+    Filter the given annotation dataframe to keep only images that have a pose lying within the given limits
+    :param annotations: annotation dataframe
+    :param axis_lim: [[xmin, xmax], [ymin, ymax], [zmin, zmax]], leave empty for no limits
+    :param axis: list with the axis to restrict. axis_lim will overwrite this value if it is not None
+    :return: filtered annotations
+    """
+    if axis_lim is None and axis is not None:
+        # axis_lim_all = [[345, 355], [265, 275], [305, 315]]     # center position +/- 5 mm
+        axis_lim_all = [[340, 360], [260, 280], [300, 320]]     # center position +/- 1 cm
+        axis_lim = [axis_lim_all[i] if ax in axis else [] for i, ax in enumerate(['x', 'y', 'z'])]
+    elif axis_lim is None and axis is None:
+        print('No filter parameters were given. Returning the original dataframe...')
+        axis_lim = [[], [], []]
+
+    # Filter on x limits
+    if axis_lim[0]:
+        annotations = annotations[annotations['x'].between(*axis_lim[0])]
+    # Filter on y limits
+    if axis_lim[1]:
+        annotations = annotations[annotations['y'].between(*axis_lim[1])]
+    # Filter on z limits
+    if axis_lim[2]:
+        annotations = annotations[annotations['z'].between(*axis_lim[2])]
+    return annotations
+
+
+def filter_imgs_per_rotation(annotations: pd.DataFrame, rot_lim: list | None) -> pd.DataFrame:
+    """
+    Filter the given annotation dataframe to keep only images that have a pose lying within the given limits
+    :param annotations: annotation dataframe
+    :param axis_lim: [[q1min, q1max], [q2min, q2max], [q3min, q3max], [q4min, q4max]], leave empty for no limits
+    :return: filtered annotations
+    """
+    if rot_lim is None:
+        # Use default as no rotation
+        rot_lim = [[0.499, 0.501], [-0.501, -0.499], [0.499, 0.501], [0.499, 0.501]]
+        # rot_lim = [[0, 1], [-1, 0], [0, 1], [0, 1]]
+
+    for lim, q in zip(rot_lim, ['q1', 'q2', 'q3', 'q4']):
+        annotations = annotations[annotations[q].between(*lim)]
+    # Merge all datasets to keep only their intersection
+    return annotations
+
+
+def get_loss_per_axis(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
+    """
+    Get the MSE for each dimension
     :param targets: [_, 6 or 7] array with the target values
+    :param preds: [_, 6 or 7] array with the model predictions
     :return: pandas df with the MSE per dimension
     """
     # Return a pandas df with the RMSE in X, Y, Z, rx, r, rz
@@ -231,6 +277,25 @@ def get_loss_per_axis(preds: np.ndarray, targets: np.ndarray) -> pd.DataFrame:
 
     loss_per_dim = pd.DataFrame.from_dict(loss_per_dim, orient='index', columns=['MSE'])
     return loss_per_dim
+
+
+def get_loss_per_img(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
+    """
+    Get the position, orientation and total MSE for each image
+    :param targets: [_, 6 or 7] array with the target values
+    :param preds: [_, 6 or 7] array with the model predictions
+    :return: pandas df with the MSE per image
+    """
+    # Return a pandas df with the RMSE in X, Y, Z, rx, r, rz
+    assert preds.shape[-1] == targets.shape[-1]
+    loss_per_img = {}
+    for i in range(preds.shape[0]):
+        loss_per_img[i] = [mean_squared_error(targets[i, :3], preds[i, :3]),    # MSE position
+                           mean_squared_error(targets[i, 3:], preds[i, 3:]),    # MSE orientation
+                           mean_squared_error(targets[i, :], preds[i, :])]      # MSE total
+
+    loss_per_img = pd.DataFrame.from_dict(loss_per_img, orient='index', columns=['MSE_pos', 'MSE_ori', 'MSE'])
+    return loss_per_img
 
 
 if __name__ == '__main__':
