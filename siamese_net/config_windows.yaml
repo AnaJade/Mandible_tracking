@@ -8,12 +8,12 @@ data:
     # - traj_random3.csv
   trajectories_test:
     # - traj_random4_mini.csv
-    - traj_random_slbo.csv
-    - traj_random_slt.csv
-    - traj_random_srbo.csv
-    - traj_random_srt.csv
+    # - traj_random_slbo.csv
+    # - traj_random_slt.csv
+    # - traj_random_srbo.csv
+    # - traj_random_srt.csv
     - traj_random4.csv
-    - traj_splitYXZ_s20.csv
+    # - traj_splitYXZ_s20.csv
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'

@@ -99,17 +99,19 @@ if __name__ == '__main__':
     use_center_only = True  # whether to use images where the position of the mandible lies in the center plane
     # axis_lim = [[358, 368], [264, 274], [293, 303]]  # Middle position based on the data (+/- 5mm)
     # axis_lim = [[353, 373], [259, 279], [288, 308]]  # Middle position based on the data (+/- 1cm)
-    axis_lim = [[340, 360], [260, 280], [300, 320]]  # True middle position (+/- 1cm)
+    axis_lim_mid = [[340, 360], [260, 280], [300, 320]]  # True middle position (+/- 1cm)
+    axis_lim_full = [[290, 410], [235, 305], [275, 345]]  # Intended full range
     no_rot = False   # use only images with no rotations
     rot_lim = [[0.499, 0.501], [-0.501, -0.499], [0.499, 0.501], [0.499, 0.501]]
     # Other options
     annotations = annotations_test
-    plane = 'yz'
+    plane = 'xz'
     grid_size = 5
     print("Filtering the data...")
     # Filter images in the dataloader to keep the ones in the center plane
     if use_center_only:
-        annotations = utils_data.filter_imgs_per_position(annotations, None, axis=[*plane])
+        annotations = utils_data.filter_imgs_per_position(annotations, None,
+                                                          axis=[ax for ax in ['x', 'y', 'z'] if ax not in [*plane]])
     if no_rot:
         annotations = utils_data.filter_imgs_per_rotation(annotations, None)
 

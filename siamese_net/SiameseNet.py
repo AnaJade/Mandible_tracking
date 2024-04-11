@@ -502,12 +502,10 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
     mse_axis = [ax for ax in ['x', 'y', 'z'] if ax not in plane][0]
     plane_axis_id = [i for i, ax in enumerate(['x', 'y', 'z']) if ax in plane]
     mse_axis_id = [i for i, ax in enumerate(['x', 'y', 'z']) if ax not in plane][0]
-
     # Get the MSE in the other axis
     try:
         plane_results = pd.read_csv(f"temp_plane{"".join(plane)}_results.csv")  # Remove after debug
     except FileNotFoundError:
-
         plane_results = []
         with torch.no_grad():
             for (images, targets) in tqdm(dataloader):
@@ -551,10 +549,10 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
     print(error_grid)
 
     # Plot and show results
-    grid_data = error_grid.to_numpy()
+    grid_data = error_grid.to_numpy().astype(float)
     cmap = matplotlib.cm.get_cmap('viridis')
     cmap.set_bad(color='white')
-    plt.imshow(grid_data, extent=tuple(min_max_ax0 + min_max_ax1), cmap=cmap)
+    plt.imshow(grid_data, extent=tuple([float(i) for i in min_max_ax0 + min_max_ax1]), cmap=cmap)
     # Overlay values
     for (i, j), mse in np.ndenumerate(grid_data):
         plt.text(bin_centers_ax0[j], bin_centers_ax1[i], '{:0.2f}'.format(mse),

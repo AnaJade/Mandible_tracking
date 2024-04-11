@@ -218,9 +218,10 @@ def filter_imgs_per_position(annotations: pd.DataFrame, axis_lim: list | None, a
     :return: filtered annotations
     """
     if axis_lim is None and axis is not None:
-        # axis_lim_all = [[345, 355], [265, 275], [305, 315]]     # center position +/- 5 mm
-        axis_lim_all = [[340, 360], [260, 280], [300, 320]]     # center position +/- 1 cm
-        axis_lim = [axis_lim_all[i] if ax in axis else [] for i, ax in enumerate(['x', 'y', 'z'])]
+        # axis_lim_center = [[345, 355], [265, 275], [305, 315]]  # center position +/- 5 mm
+        axis_lim_center = [[340, 360], [260, 280], [300, 320]]  # center position +/- 1 cm
+        axis_lim_all = [[290, 410], [235, 305], [275, 345]]     # Intended full range
+        axis_lim = [axis_lim_center[i] if ax in axis else axis_lim_all[i] for i, ax in enumerate(['x', 'y', 'z'])]
     elif axis_lim is None and axis is None:
         print('No filter parameters were given. Returning the original dataframe...')
         axis_lim = [[], [], []]
@@ -241,7 +242,7 @@ def filter_imgs_per_rotation(annotations: pd.DataFrame, rot_lim: list | None) ->
     """
     Filter the given annotation dataframe to keep only images that have a pose lying within the given limits
     :param annotations: annotation dataframe
-    :param axis_lim: [[q1min, q1max], [q2min, q2max], [q3min, q3max], [q4min, q4max]], leave empty for no limits
+    :param rot_lim: [[q1min, q1max], [q2min, q2max], [q3min, q3max], [q4min, q4max]], leave empty for no limits
     :return: filtered annotations
     """
     if rot_lim is None:
