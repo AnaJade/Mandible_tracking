@@ -545,13 +545,12 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
             # Filter to keep only relevant images based on ax 1
             bin_results = bin_ax0_results[bin_ax0_results[plane[1]].between(bins_ax1[j], bins_ax1[j+1])]
             # Calculate average error
-            error_grid.loc[bin1_id, bin0_id] = bin_results[f'mse_{rmse_axis}'].mean()
+            error_grid.loc[bin1_id, bin0_id] = bin_results[f'rmse_{rmse_axis}'].mean()
             # Save image count per grid cell
             img_count_grid.loc[bin1_id, bin0_id] = len(bin_results)
     # Fill NaN values with numpy nan (needed to plot the results)
     error_grid.fillna(np.nan, inplace=True)
     print(error_grid)
-    print(img_count_grid)
 
     # Plot and show results
     grid_data = error_grid.to_numpy().astype(float)
@@ -565,9 +564,11 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
                  bbox=dict(facecolor='white', alpha=0.5),
                  ha='center', va='center')
     plt.colorbar()
-    plt.xlabel(plane[0])
-    plt.ylabel(plane[1])
-    plt.title(f'Average {rmse_axis.upper()} position RMSE in the {"".join(plane).upper()} plane')
+    plt.xlabel(f'{plane[0]} [mm]')
+    plt.ylabel(f'{plane[1]} [mm]')
+    plt.title(f'Average {rmse_axis.upper()} position RMSE in the {"".join(plane).upper()} plane for '
+              f'{math.floor(plane_results[rmse_axis].min())} < {rmse_axis} < '
+              f'{math.ceil(plane_results[rmse_axis].max())} mm')
     plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
     plt.tight_layout()
     plt.show(block=True)
