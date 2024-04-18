@@ -73,6 +73,10 @@ if __name__ == '__main__':
     annotations_valid = utils_data.merge_annotations(dataset_root, anno_paths_valid)
     annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
 
+    # Filter to view activations on high error images
+    # annotations_test = utils_data.filter_imgs_per_position(annotations_test,
+    #                                                        [[300, 340], [250, 280], [300, 320]], None)
+
     # Create dataset object
     print("Initializing dataset object...")
     # Create dataset objects
@@ -94,7 +98,7 @@ if __name__ == '__main__':
     model.to(device)
 
     print("Extract features...")
-    dataloader = dataloader_train
+    dataloader = dataloader_test
     get_feature_maps(model, device, dataloader, cam_inputs)
 
     print()

@@ -87,22 +87,22 @@ if __name__ == '__main__':
     preds = get_preds(model, device, dataloader_test, min_max_pos)
 
     # Calculate the loss
-    test_loss = mean_squared_error(annotations_test.to_numpy(), preds.to_numpy())
-    print(f'Test loss: {test_loss}')
+    test_rmse = mean_squared_error(annotations_test.to_numpy(), preds.to_numpy(), squared=False)
+    print(f'Test RMSE: {test_rmse}')
 
     # Calculate the loss per dimension
     # annotations_test_euler = utils.pose_quaternion2euler(annotations_test.to_numpy())
     # preds_euler = utils.pose_quaternion2euler(preds.to_numpy())
-    loss_per_dim = utils_data.get_loss_per_axis(annotations_test.to_numpy(), preds.to_numpy())
-    print(f'Loss per dimension: \n{loss_per_dim}')
+    rmse_per_dim = utils_data.get_loss_per_axis(annotations_test.to_numpy(), preds.to_numpy())
+    print(f'RMSE per dimension: \n{rmse_per_dim}')
 
     # Calculate the loss on the normalized data
     norm_annotations = utils_data.normalize_position(torch.Tensor(annotations_test.to_numpy()),
                                                      np.array(min_max_pos[0]), np.array(min_max_pos[1]))
     norm_preds = utils_data.normalize_position(torch.Tensor(preds.to_numpy()),
                                                np.array(min_max_pos[0]), np.array(min_max_pos[1]))
-    test_loss = mean_squared_error(norm_annotations, norm_preds)
-    print(f'Test loss on normalized data: {test_loss}')
+    test_rmse = mean_squared_error(norm_annotations, norm_preds, squared=False)
+    print(f'Test RMSE on normalized data: {test_rmse}')
 
     # Format to pandas df
     preds_df = annotations_test.copy()
@@ -114,9 +114,9 @@ if __name__ == '__main__':
     preds_df = pd.concat([preds_df, pos_diff], axis=1)
 
     # Append the position, orientation and total MSE for each image
-    mse_per_image = utils_data.get_loss_per_img(annotations_test.to_numpy(), preds.to_numpy())
-    mse_per_image.index = preds_df.index
-    preds_df = pd.concat([preds_df, mse_per_image], axis=1)
+    rmse_per_image = utils_data.get_loss_per_img(annotations_test.to_numpy(), preds.to_numpy())
+    rmse_per_image.index = preds_df.index
+    preds_df = pd.concat([preds_df, rmse_per_image], axis=1)
 
     # Save preds as csv
     print("Saving results...")

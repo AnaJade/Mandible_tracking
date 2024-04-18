@@ -499,9 +499,9 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
     """
     # Parse plane parameter
     plane = [*plane]
-    mse_axis = [ax for ax in ['x', 'y', 'z'] if ax not in plane][0]
+    rmse_axis = [ax for ax in ['x', 'y', 'z'] if ax not in plane][0]
     plane_axis_id = [i for i, ax in enumerate(['x', 'y', 'z']) if ax in plane]
-    mse_axis_id = [i for i, ax in enumerate(['x', 'y', 'z']) if ax not in plane][0]
+    rmse_axis_id = [i for i, ax in enumerate(['x', 'y', 'z']) if ax not in plane][0]
     # Get the MSE in the other axis
     try:
         plane_results = pd.read_csv(f"temp_plane{"".join(plane)}_results.csv")  # Remove after debug
@@ -518,10 +518,11 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
                     targets = utils_data.rescale_position(targets[0, ...].detach().cpu().numpy(),
                                                           np.array(min_max_pos[0]), np.array(min_max_pos[1]))
                 # Get MSE on remaining axis
-                mse = mean_squared_error(targets[:, mse_axis_id], preds[:, mse_axis_id])
+                rmse = mean_squared_error(targets[:, rmse_axis_id], preds[:, rmse_axis_id], squared=False)
                 plane_results.append({plane[0]: targets[0, plane_axis_id[0]],
                                       plane[1]: targets[0, plane_axis_id[1]],
-                                      f'mse_{mse_axis}': mse})
+                                      rmse_axis: targets[0, rmse_axis_id],
+                                      f'rmse_{rmse_axis}': rmse})
         plane_results = pd.DataFrame(plane_results)
         plane_results.to_csv(f"temp_plane{"".join(plane)}_results.csv", index=False)     # Remove after debug
 
@@ -536,6 +537,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
 
     # Split the images into the grid
     error_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
+    img_count_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
     for i, bin0_id in enumerate(bin_centers_ax0):
         # Filter to keep only relevant images based on ax 0
         bin_ax0_results = plane_results[plane_results[plane[0]].between(bins_ax0[i], bins_ax0[i+1])]
@@ -543,25 +545,29 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
             # Filter to keep only relevant images based on ax 1
             bin_results = bin_ax0_results[bin_ax0_results[plane[1]].between(bins_ax1[j], bins_ax1[j+1])]
             # Calculate average error
-            error_grid.loc[bin1_id, bin0_id] = bin_results[f'mse_{mse_axis}'].mean()
+            error_grid.loc[bin1_id, bin0_id] = bin_results[f'mse_{rmse_axis}'].mean()
+            # Save image count per grid cell
+            img_count_grid.loc[bin1_id, bin0_id] = len(bin_results)
     # Fill NaN values with numpy nan (needed to plot the results)
     error_grid.fillna(np.nan, inplace=True)
     print(error_grid)
+    print(img_count_grid)
 
     # Plot and show results
     grid_data = error_grid.to_numpy().astype(float)
+    img_count_data = img_count_grid.to_numpy()
     cmap = matplotlib.cm.get_cmap('viridis')
     cmap.set_bad(color='white')
     plt.imshow(grid_data, extent=tuple([float(i) for i in min_max_ax0 + min_max_ax1]), cmap=cmap)
     # Overlay values
-    for (i, j), mse in np.ndenumerate(grid_data):
-        plt.text(bin_centers_ax0[j], bin_centers_ax1[i], '{:0.2f}'.format(mse),
+    for (i, j), rmse in np.ndenumerate(grid_data):
+        plt.text(bin_centers_ax0[j], bin_centers_ax1[i], f'{round(rmse, 2)}\n{img_count_data[i, j]} imgs',
                  bbox=dict(facecolor='white', alpha=0.5),
                  ha='center', va='center')
     plt.colorbar()
     plt.xlabel(plane[0])
     plt.ylabel(plane[1])
-    plt.title(f'Average {mse_axis.upper()} position MSE in the {"".join(plane).upper()} plane')
+    plt.title(f'Average {rmse_axis.upper()} position RMSE in the {"".join(plane).upper()} plane')
     plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
     plt.tight_layout()
     plt.show(block=True)

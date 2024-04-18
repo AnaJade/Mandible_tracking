@@ -272,12 +272,12 @@ def get_loss_per_axis(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
     else:
         dims = []
 
-    loss_per_dim = {}
+    rmse_per_dim = {}
     for i, dim in enumerate(dims):
-        loss_per_dim[dim] = mean_squared_error(targets[:, i], preds[:, i])
+        rmse_per_dim[dim] = mean_squared_error(targets[:, i], preds[:, i], squared=False)
 
-    loss_per_dim = pd.DataFrame.from_dict(loss_per_dim, orient='index', columns=['MSE'])
-    return loss_per_dim
+    rmse_per_dim = pd.DataFrame.from_dict(rmse_per_dim, orient='index', columns=['RMSE'])
+    return rmse_per_dim
 
 
 def get_loss_per_img(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
@@ -289,14 +289,14 @@ def get_loss_per_img(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
     """
     # Return a pandas df with the RMSE in X, Y, Z, rx, r, rz
     assert preds.shape[-1] == targets.shape[-1]
-    loss_per_img = {}
+    rmse_per_img = {}
     for i in range(preds.shape[0]):
-        loss_per_img[i] = [mean_squared_error(targets[i, :3], preds[i, :3]),    # MSE position
-                           mean_squared_error(targets[i, 3:], preds[i, 3:]),    # MSE orientation
-                           mean_squared_error(targets[i, :], preds[i, :])]      # MSE total
+        rmse_per_img[i] = [mean_squared_error(targets[i, :3], preds[i, :3], squared=False),    # RMSE position
+                           mean_squared_error(targets[i, 3:], preds[i, 3:], squared=False),    # RMSE orientation
+                           mean_squared_error(targets[i, :], preds[i, :], squared=False)]      # RMSE total
 
-    loss_per_img = pd.DataFrame.from_dict(loss_per_img, orient='index', columns=['MSE_pos', 'MSE_ori', 'MSE'])
-    return loss_per_img
+    rmse_per_img = pd.DataFrame.from_dict(rmse_per_img, orient='index', columns=['RMSE_pos', 'RMSE_ori', 'RMSE'])
+    return rmse_per_img
 
 
 if __name__ == '__main__':
