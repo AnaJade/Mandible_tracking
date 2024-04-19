@@ -570,14 +570,11 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
                 img_train_count_grid.loc[bin1_id, bin0_id] = len(img_train_bin)
         # Fill NaN values with numpy nan (needed to plot the results)
         img_train_count_grid.fillna(np.nan, inplace=True)
-        print(img_train_count_grid)
+        # print(img_train_count_grid)
 
         # Plot and show results
-        if annotations_train is not None:
-            heatmap_data = [[error_grid.to_numpy().astype(float), img_count_grid.to_numpy()],
-                            img_train_count_grid.to_numpy().astype(float)]
-        else:
-            heatmap_data = [[error_grid.to_numpy().astype(float), img_count_grid.to_numpy()]]
+        heatmap_data = [[error_grid.to_numpy().astype(float), img_count_grid.to_numpy()],
+                        img_train_count_grid.to_numpy().astype(float)]
         fig, ax = plt.subplots(1, len(heatmap_data))
         cmap = matplotlib.cm.get_cmap('viridis')
         cmap.set_bad(color='white')
@@ -593,7 +590,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
                                 bbox=dict(facecolor='white', alpha=0.5),
                                 ha='center', va='center')
                 ax[id].title.set_text(f'Average {rmse_axis.upper()} position RMSE in the {"".join(plane).upper()} '
-                                      f'plane for {math.floor(plane_results[rmse_axis].min())} < {rmse_axis} < '
+                                      f'plane for\n{math.floor(plane_results[rmse_axis].min())} < {rmse_axis} < '
                                       f'{math.ceil(plane_results[rmse_axis].max())} mm')
             elif id == 1:
                 # Overlay values
@@ -606,7 +603,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
             plt.colorbar(im, ax=ax[id])
             ax[id].set_xlabel(f'{plane[0]} [mm]')
             ax[id].set_ylabel(f'{plane[1]} [mm]')
-        plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
+        plt.figtext(.25, .05, 'White sections represent NaN values\ndue to a lack of images', ha='center')
         plt.tight_layout()
         plt.show(block=True)
 
@@ -649,8 +646,8 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
                   f'{math.ceil(plane_results[rmse_axis].max())} mm')
         plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
         plt.tight_layout()
-    plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
-    plt.show(block=True)
+        plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
+        plt.show(block=True)
 
 
 def wandb_init(configs: dict):
