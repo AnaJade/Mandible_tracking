@@ -486,7 +486,7 @@ def get_feature_maps(model: SiameseNetwork, device, dataloader, cam_inputs):
             plt.show(block=True)
 
 
-def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plane, grid_size):
+def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plane, grid_size, annotations_train=None):
     """
     Get the average error of every image per "bin" in the given plane
     :param model: Siamese model with the weights preloaded
@@ -495,6 +495,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
     :param min_max_pos: min and max possible values in x, y, z as a list: [[xmin, ymin, zmin], [xmax, ymax, zmax]]
     :param plane: string that is either 'xy', 'xz', or 'yz'
     :param grid_size: number of sections in which the plane's 2 axis will be split
+    :param annotations_train: annotations for data used to train the model
     :return:
     """
     # Parse plane parameter
@@ -538,6 +539,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
     # Split the images into the grid
     error_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
     img_count_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
+    img_train_count_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
     for i, bin0_id in enumerate(bin_centers_ax0):
         # Filter to keep only relevant images based on ax 0
         bin_ax0_results = plane_results[plane_results[plane[0]].between(bins_ax0[i], bins_ax0[i+1])]
@@ -546,11 +548,29 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
             bin_results = bin_ax0_results[bin_ax0_results[plane[1]].between(bins_ax1[j], bins_ax1[j+1])]
             # Calculate average error
             error_grid.loc[bin1_id, bin0_id] = bin_results[f'rmse_{rmse_axis}'].mean()
-            # Save image count per grid cell
+            # Save test image count per grid cell
             img_count_grid.loc[bin1_id, bin0_id] = len(bin_results)
     # Fill NaN values with numpy nan (needed to plot the results)
     error_grid.fillna(np.nan, inplace=True)
     print(error_grid)
+
+     # Save train image count per grid cell
+    img_train_count_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
+    if annotations_train is not None:
+        rmse_axis_min = plane_results[rmse_axis].min()
+        rmse_axis_max = plane_results[rmse_axis].max()
+        for i, bin0_id in enumerate(bin_centers_ax0):
+            # Filter to keep only relevant images based on ax 0
+            bin_ax0_train_imgs = annotations_train[annotations_train[plane[0]].between(bins_ax0[i], bins_ax0[i + 1])]
+            for j, bin1_id in enumerate(bin_centers_ax1):
+                # Filter to keep only relevant images based on ax 1
+                img_train_bin = bin_ax0_train_imgs[bin_ax0_train_imgs[plane[1]].between(bins_ax1[j], bins_ax1[j + 1])]
+                # Filter based on rmse axis
+                img_train_bin = img_train_bin[img_train_bin[rmse_axis].between(rmse_axis_min, rmse_axis_max)]
+                img_train_count_grid.loc[bin1_id, bin0_id] = len(img_train_bin)
+        # Fill NaN values with numpy nan (needed to plot the results)
+        img_train_count_grid.fillna(np.nan, inplace=True)
+        print(img_train_count_grid)
 
     # Plot and show results
     grid_data = error_grid.to_numpy().astype(float)
@@ -571,6 +591,27 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
               f'{math.ceil(plane_results[rmse_axis].max())} mm')
     plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
     plt.tight_layout()
+    plt.show(block=True)
+
+    # Plot training image count
+    if annotations_train is not None:
+        img_count_data = img_train_count_grid.to_numpy().astype(float)
+        cmap = matplotlib.cm.get_cmap('viridis')
+        cmap.set_bad(color='white')
+        plt.imshow(img_count_data, extent=tuple([float(i) for i in min_max_ax0 + min_max_ax1]), cmap=cmap)
+        # Overlay values
+        for (i, j), _ in np.ndenumerate(grid_data):
+            plt.text(bin_centers_ax0[j], bin_centers_ax1[i], f'{int(img_count_data[i, j])} imgs',
+                     bbox=dict(facecolor='white', alpha=0.5),
+                     ha='center', va='center')
+        plt.colorbar()
+        plt.xlabel(f'{plane[0]} [mm]')
+        plt.ylabel(f'{plane[1]} [mm]')
+        plt.title(f'Training image count for {math.floor(plane_results[rmse_axis].min())} < {rmse_axis} < '
+                  f'{math.ceil(plane_results[rmse_axis].max())} mm')
+        plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
+        plt.tight_layout()
+    plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
     plt.show(block=True)
 
 

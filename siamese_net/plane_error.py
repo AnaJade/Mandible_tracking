@@ -105,7 +105,7 @@ if __name__ == '__main__':
     rot_lim = [[0.499, 0.501], [-0.501, -0.499], [0.499, 0.501], [0.499, 0.501]]
     # Other options
     annotations = annotations_test
-    plane = 'xz'
+    plane = 'yz'
     grid_size = 5
     print("Filtering the data...")
     # Filter images in the dataloader to keep the ones in the center plane
@@ -114,6 +114,8 @@ if __name__ == '__main__':
                                                           axis=[ax for ax in ['x', 'y', 'z'] if ax not in [*plane]])
     if no_rot:
         annotations = utils_data.filter_imgs_per_rotation(annotations, None)
+    
+    annotations = utils_data.filter_imgs_per_position(annotations, axis_lim_full, None)
 
     print("Creating the dataloader...")
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
@@ -122,7 +124,7 @@ if __name__ == '__main__':
 
     print("Calculating the plane error...")
     if len(dataloader) > 1:
-        get_plane_error(model, device, dataloader, min_max_pos, plane, grid_size)
+        get_plane_error(model, device, dataloader, min_max_pos, plane, grid_size, annotations_train)
     else:
         print("No images left in the dataset after filtering")
 
