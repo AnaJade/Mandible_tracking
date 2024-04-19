@@ -572,6 +572,44 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
         img_train_count_grid.fillna(np.nan, inplace=True)
         print(img_train_count_grid)
 
+        # Plot and show results
+        if annotations_train is not None:
+            heatmap_data = [[error_grid.to_numpy().astype(float), img_count_grid.to_numpy()],
+                            img_train_count_grid.to_numpy().astype(float)]
+        else:
+            heatmap_data = [[error_grid.to_numpy().astype(float), img_count_grid.to_numpy()]]
+        fig, ax = plt.subplots(1, len(heatmap_data))
+        cmap = matplotlib.cm.get_cmap('viridis')
+        cmap.set_bad(color='white')
+        for id, data in enumerate(heatmap_data):
+            if id == 0:
+                img_count = data[1]
+                data = data[0]
+            im = ax[id].imshow(data, extent=tuple([float(i) for i in min_max_ax0 + min_max_ax1]), cmap=cmap)
+            if id == 0:
+                # Overlay values
+                for (i, j), rmse in np.ndenumerate(data):
+                    ax[id].text(bin_centers_ax0[j], bin_centers_ax1[i], f'{round(rmse, 2)}\n{img_count[i, j]} imgs',
+                                bbox=dict(facecolor='white', alpha=0.5),
+                                ha='center', va='center')
+                ax[id].title.set_text(f'Average {rmse_axis.upper()} position RMSE in the {"".join(plane).upper()} '
+                                      f'plane for {math.floor(plane_results[rmse_axis].min())} < {rmse_axis} < '
+                                      f'{math.ceil(plane_results[rmse_axis].max())} mm')
+            elif id == 1:
+                # Overlay values
+                for (i, j), _ in np.ndenumerate(data):
+                    ax[id].text(bin_centers_ax0[j], bin_centers_ax1[i], f'{int(data[i, j])} imgs',
+                                bbox=dict(facecolor='white', alpha=0.5),
+                                ha='center', va='center')
+                ax[id].title.set_text(f'Training image count for {math.floor(plane_results[rmse_axis].min())} '
+                                      f'< {rmse_axis} < {math.ceil(plane_results[rmse_axis].max())} mm')
+            plt.colorbar(im, ax=ax[id])
+            ax[id].set_xlabel(f'{plane[0]} [mm]')
+            ax[id].set_ylabel(f'{plane[1]} [mm]')
+        plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
+        plt.tight_layout()
+        plt.show(block=True)
+
     # Plot and show results
     grid_data = error_grid.to_numpy().astype(float)
     img_count_data = img_count_grid.to_numpy()
