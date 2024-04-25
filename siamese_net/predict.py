@@ -104,6 +104,16 @@ if __name__ == '__main__':
     test_rmse = mean_squared_error(norm_annotations, norm_preds, squared=False)
     print(f'Test RMSE on normalized data: {test_rmse}')
 
+    # Calculate the rotation error
+
+    rot_q_diff = utils.hamilton_prod(annotations_test.to_numpy()[:, -4:], preds.to_numpy()[:, -4:])
+
+    # Convert error quaternion to Euler
+    rot_euler_error = utils.quaternion2euler(rot_q_diff)
+    rot_euler_avg_err = pd.DataFrame(np.mean(rot_euler_error, axis=0), index=['Rx_err', 'Ry_err', 'Rz_err'],
+                                     columns=['Rot_err'])
+    print(f'Average orientation error:\n{rot_euler_avg_err}')
+
     # Format to pandas df
     preds_df = annotations_test.copy()
     preds_df.iloc[:, :] = preds
@@ -113,10 +123,15 @@ if __name__ == '__main__':
     pos_diff = pd.DataFrame(pos_diff, columns=['delta_x', 'delta_y', 'delta_z'], index=preds_df.index)
     preds_df = pd.concat([preds_df, pos_diff], axis=1)
 
-    # Append the position, orientation and total MSE for each image
+    # Append the position, orientation and total RMSE for each image
     rmse_per_image = utils_data.get_loss_per_img(annotations_test.to_numpy(), preds.to_numpy())
     rmse_per_image.index = preds_df.index
     preds_df = pd.concat([preds_df, rmse_per_image], axis=1)
+
+    # Add euler error for each image
+    rot_err_per_image = pd.DataFrame(rot_euler_error, columns=['Rx_err', 'Ry_err', 'Rz_err'])
+    rot_err_per_image.index = preds_df.index
+    preds_df = pd.concat([preds_df, rot_err_per_image], axis=1)
 
     # Save preds as csv
     print("Saving results...")
