@@ -37,6 +37,7 @@ if __name__ == '__main__':
     dataset_root = pathlib.Path(configs['data']['dataset_root'])
     anno_paths_train = configs['data']['trajectories_train']
     anno_paths_valid = configs['data']['trajectories_valid']
+    anno_paths_test = configs['data']['trajectories_test']
     rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
@@ -44,6 +45,7 @@ if __name__ == '__main__':
     cam_inputs = configs['training']['cam_inputs']
     train_bs = configs['training']['train_bs']
     valid_bs = configs['training']['valid_bs']
+    test_bs = configs['training']['test_bs']
 
     nb_epochs = configs['training']['max_epochs']
     patience = configs['training']['patience']
@@ -76,6 +78,7 @@ if __name__ == '__main__':
     print("Loading annotation files...")
     annotations_train = utils_data.merge_annotations(dataset_root, anno_paths_train)
     annotations_valid = utils_data.merge_annotations(dataset_root, anno_paths_valid)
+    annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
 
     # Create dataset object
     print("Initializing dataset object...")
@@ -83,12 +86,15 @@ if __name__ == '__main__':
     transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
     dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, min_max_pos, transforms)
     dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, min_max_pos, transforms)
+    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
 
     print("Creating dataloader...")
-    dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=True, num_workers=4)
-    dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=4)
-    # dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=False, num_workers=0)
-    # dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=0)
+    # dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=True, num_workers=4)
+    # dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=4)
+    # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
+    dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=False, num_workers=0)
+    dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=0)
+    dataloader_test = DataLoader(dataset_valid, batch_size=test_bs, shuffle=False, num_workers=0)
 
     # Define the model
     model = SiameseNetwork(configs)
@@ -102,7 +108,7 @@ if __name__ == '__main__':
 
     print("Training model...")
     print(f"Logging on wandb: {wandb_log}")
-    model_fit = train_model(configs, model, [dataloader_train, dataloader_valid],
+    model_fit = train_model(configs, model, [dataloader_train, dataloader_valid, dataloader_test],
                             device, criterion, optimizer, scheduler)
 
     # Save model (not needed, since the model is saved during training
@@ -115,8 +121,5 @@ if __name__ == '__main__':
         weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}"
     torch.save(model_fit.state_dict(), f"siamese_net/model_weights/{weights_file}.pth")
     """
-
-
-
 
 

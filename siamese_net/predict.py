@@ -105,7 +105,6 @@ if __name__ == '__main__':
     print(f'Test RMSE on normalized data: {test_rmse}')
 
     # Calculate the rotation error
-
     rot_q_diff = utils.hamilton_prod(annotations_test.to_numpy()[:, -4:], preds.to_numpy()[:, -4:])
 
     # Convert error quaternion to Euler

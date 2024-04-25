@@ -258,10 +258,10 @@ def filter_imgs_per_rotation(annotations: pd.DataFrame, rot_lim: list | None) ->
 
 def get_loss_per_axis(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
     """
-    Get the MSE for each dimension
+    Get the RMSE for each dimension
     :param targets: [_, 6 or 7] array with the target values
     :param preds: [_, 6 or 7] array with the model predictions
-    :return: pandas df with the MSE per dimension
+    :return: pandas df with the RMSE per dimension
     """
     # Return a pandas df with the RMSE in X, Y, Z, rx, r, rz
     assert preds.shape[-1] == targets.shape[-1]
@@ -282,10 +282,10 @@ def get_loss_per_axis(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
 
 def get_loss_per_img(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
     """
-    Get the position, orientation and total MSE for each image
+    Get the position, orientation and total RMSE for each image
     :param targets: [_, 6 or 7] array with the target values
     :param preds: [_, 6 or 7] array with the model predictions
-    :return: pandas df with the MSE per image
+    :return: pandas df with the RMSE per image
     """
     # Return a pandas df with the RMSE in X, Y, Z, rx, r, rz
     assert preds.shape[-1] == targets.shape[-1]

@@ -186,7 +186,7 @@ def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=F
 
     # Calculate final epoch loss
     if current_batch > 0:
-        epoch_loss /= (current_batch*train_loader.batch_size)
+        epoch_loss /= (current_batch * train_loader.batch_size)
     else:
         print(f"Epoch loss couldn't be calculated because first loaded image couldn't be read")
         epoch_loss = None
@@ -269,7 +269,7 @@ def eval_model(model, device, dataloader, criterion):
         valid_loss /= (current_batch * dataloader.batch_size)
     else:
         print(f"Valid loss couldn't be calculated because first loaded image couldn't be read")
-        valid_loss = 1e7    # Return random large value
+        valid_loss = 1e7  # Return random large value
 
     # Calculate the loss per dimension
     # valid_preds = utils.pose_quaternion2euler(np.concatenate([p.detach().cpu() for p in valid_preds], axis=0))
@@ -366,28 +366,69 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
                 wandb_log('epoch',
                           train_loss=epoch_train_loss,
                           valid_loss=epoch_valid_loss,
-                          valid_x_mse=epoch_valid_loss_per_dim.loc['x', 'MSE'],
-                          valid_y_mse=epoch_valid_loss_per_dim.loc['y', 'MSE'],
-                          valid_z_mse=epoch_valid_loss_per_dim.loc['z', 'MSE'],
-                          valid_rx_mse=epoch_valid_loss_per_dim.loc['rx', 'MSE'],
-                          valid_ry_mse=epoch_valid_loss_per_dim.loc['ry', 'MSE'],
-                          valid_rz_mse=epoch_valid_loss_per_dim.loc['rz', 'MSE'])
+                          valid_x_rmse=epoch_valid_loss_per_dim.loc['x', 'RMSE'],
+                          valid_y_rmse=epoch_valid_loss_per_dim.loc['y', 'RMSE'],
+                          valid_z_rmse=epoch_valid_loss_per_dim.loc['z', 'RMSE'],
+                          valid_rx_rmse=epoch_valid_loss_per_dim.loc['rx', 'RMSE'],
+                          valid_ry_rmse=epoch_valid_loss_per_dim.loc['ry', 'RMSE'],
+                          valid_rz_rmse=epoch_valid_loss_per_dim.loc['rz', 'RMSE'])
             elif len(epoch_valid_loss_per_dim) == 7:
                 wandb_log('epoch',
                           train_loss=epoch_train_loss,
                           valid_loss=epoch_valid_loss,
-                          valid_x_mse=epoch_valid_loss_per_dim.loc['x', 'MSE'],
-                          valid_y_mse=epoch_valid_loss_per_dim.loc['y', 'MSE'],
-                          valid_z_mse=epoch_valid_loss_per_dim.loc['z', 'MSE'],
-                          valid_q1_mse=epoch_valid_loss_per_dim.loc['q1', 'MSE'],
-                          valid_q2_mse=epoch_valid_loss_per_dim.loc['q2', 'MSE'],
-                          valid_q3_mse=epoch_valid_loss_per_dim.loc['q3', 'MSE'],
-                          valid_q4_mse=epoch_valid_loss_per_dim.loc['q4', 'MSE'])
+                          valid_x_rmse=epoch_valid_loss_per_dim.loc['x', 'RMSE'],
+                          valid_y_rmse=epoch_valid_loss_per_dim.loc['y', 'RMSE'],
+                          valid_z_rmse=epoch_valid_loss_per_dim.loc['z', 'RMSE'],
+                          valid_q1_rmse=epoch_valid_loss_per_dim.loc['q1', 'RMSE'],
+                          valid_q2_rmse=epoch_valid_loss_per_dim.loc['q2', 'RMSE'],
+                          valid_q3_rmse=epoch_valid_loss_per_dim.loc['q3', 'RMSE'],
+                          valid_q4_rmse=epoch_valid_loss_per_dim.loc['q4', 'RMSE'])
+
+    # Get final test set performance
+    model.load_state_dict(best_model_weights)
+    if len(dataloaders) == 3:
+        test_loader = dataloaders[2]
+        min_max_pos = utils_data.get_dataset_min_max_pos(configs)
+        print("Getting predictions on the test set")
+        preds = get_preds(model, device, test_loader, min_max_pos)
+
+        # Get test set annotations
+        annotations_test = test_loader.dataset.img_labels
+
+        # Calculate the loss
+        test_rmse = mean_squared_error(annotations_test.to_numpy(), preds.to_numpy(), squared=False)
+        print(f'Test RMSE: {test_rmse}')
+
+        # Calculate the loss per dimension
+        rmse_per_dim = utils_data.get_loss_per_axis(annotations_test.to_numpy(), preds.to_numpy())
+        print(f'RMSE per dimension: \n{rmse_per_dim}')
+
+        # Calculate the rotation error
+        rot_q_diff = utils.hamilton_prod(annotations_test.to_numpy()[:, -4:], preds.to_numpy()[:, -4:])
+
+        # Convert error quaternion to Euler
+        rot_euler_error = utils.quaternion2euler(rot_q_diff)
+        rot_euler_avg_err = pd.DataFrame(np.mean(rot_euler_error, axis=0), index=['Rx_err', 'Ry_err', 'Rz_err'],
+                                         columns=['Rot_err'])
+        print(f'Average orientation error:\n{rot_euler_avg_err}')
+
+        if log_wandb:
+            wandb_log('',
+                      test_loss=test_rmse,
+                      test_x_rmse=rmse_per_dim.loc['x', 'RMSE'],
+                      test_y_rmse=rmse_per_dim.loc['y', 'RMSE'],
+                      test_z_rmse=rmse_per_dim.loc['z', 'RMSE'],
+                      test_q1_rmse=rmse_per_dim.loc['q1', 'RMSE'],
+                      test_q2_rmse=rmse_per_dim.loc['q2', 'RMSE'],
+                      test_q3_rmse=rmse_per_dim.loc['q3', 'RMSE'],
+                      test_q4_rmse=rmse_per_dim.loc['q4', 'RMSE'],
+                      test_rx_err=rot_euler_avg_err.loc['Rx_err', 'Rot_err'],
+                      test_ry_err=rot_euler_avg_err.loc['Ry_err', 'Rot_err'],
+                      test_rz_err=rot_euler_avg_err.loc['Rz_err', 'Rot_err']
+                      )
 
     if log_wandb:
         wandb.finish()
-
-    model.load_state_dict(best_model_weights)
 
     return model
 
@@ -435,9 +476,10 @@ def overlay_activation_map(imgs: list[np.ndarray], heatmaps: list[np.ndarray]) -
     :param heatmaps: list with the subnet outputs
     :return: list with the superimposed images
     """
-    heatmaps = [np.maximum(np.mean(heatmap, axis=0), 0)/np.max(heatmap) for heatmap in heatmaps]
+    heatmaps = [np.maximum(np.mean(heatmap, axis=0), 0) / np.max(heatmap) for heatmap in heatmaps]
     heatmaps = [cv2.resize(heatmap, (imgs[0].shape[1], imgs[0].shape[0])) for heatmap in heatmaps]
-    heatmaps = [np.uint8(255 * (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))) for heatmap in heatmaps]
+    heatmaps = [np.uint8(255 * (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))) for heatmap in
+                heatmaps]
     heatmaps = [cv2.applyColorMap(heatmap, cv2.COLORMAP_JET) for heatmap in heatmaps]
     overlayed_imgs = [cv2.addWeighted(heatmap, 0.35, img, 0.65, 0.0) for heatmap, img in zip(heatmaps, imgs)]
     return overlayed_imgs
@@ -467,16 +509,16 @@ def get_feature_maps(model: SiameseNetwork, device, dataloader, cam_inputs):
             plt.figure(figsize=(3 * len(heatmap_imgs), 7))
             img_name = dataloader.dataset.img_names[i]
             for j, (heatmap_img, heatmap, img, cam) in enumerate(zip(heatmap_imgs, heatmaps, images, cam_inputs)):
-                plt.subplot(3, len(heatmap_imgs), j+1)
+                plt.subplot(3, len(heatmap_imgs), j + 1)
                 plt.title(cam)
                 plt.imshow(heatmap_img)
                 plt.axis('off')
-                plt.subplot(3, len(heatmap_imgs), j+4)
+                plt.subplot(3, len(heatmap_imgs), j + 4)
                 if j == 0:
                     plt.title('Subnet outputs:', loc='left')
                 plt.imshow(heatmap)
                 # plt.axis('off')
-                plt.subplot(3, len(heatmap_imgs), j+7)
+                plt.subplot(3, len(heatmap_imgs), j + 7)
                 if j == 0:
                     plt.title('Input images:', loc='left')
                 plt.imshow(img)
@@ -525,16 +567,16 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
                                       rmse_axis: targets[0, rmse_axis_id],
                                       f'rmse_{rmse_axis}': rmse})
         plane_results = pd.DataFrame(plane_results)
-        plane_results.to_csv(f"temp_plane{"".join(plane)}_results.csv", index=False)     # Remove after debug
+        plane_results.to_csv(f"temp_plane{"".join(plane)}_results.csv", index=False)  # Remove after debug
 
     # Create grid limits
     min_max_ax0 = [math.floor(plane_results[plane[0]].min()), math.ceil(plane_results[plane[0]].max())]
     min_max_ax1 = [math.floor(plane_results[plane[1]].min()), math.ceil(plane_results[plane[1]].max())]
-    bins_ax0 = list(np.ceil(np.linspace(start=min_max_ax0[0], stop=min_max_ax0[1], num=grid_size+1)).astype(np.int32))
-    bins_ax1 = list(np.ceil(np.linspace(start=min_max_ax1[0], stop=min_max_ax1[1], num=grid_size+1)).astype(np.int32))
-    bin_centers_ax0 = [(bins_ax0[i] + bins_ax0[i+1])/2 for i in range(grid_size)]
-    bin_centers_ax1 = [(bins_ax1[i] + bins_ax1[i+1])/2 for i in range(grid_size)]
-    bin_centers_ax1.reverse()   # Needed to have the vertical axis thr right way on the graph
+    bins_ax0 = list(np.ceil(np.linspace(start=min_max_ax0[0], stop=min_max_ax0[1], num=grid_size + 1)).astype(np.int32))
+    bins_ax1 = list(np.ceil(np.linspace(start=min_max_ax1[0], stop=min_max_ax1[1], num=grid_size + 1)).astype(np.int32))
+    bin_centers_ax0 = [(bins_ax0[i] + bins_ax0[i + 1]) / 2 for i in range(grid_size)]
+    bin_centers_ax1 = [(bins_ax1[i] + bins_ax1[i + 1]) / 2 for i in range(grid_size)]
+    bin_centers_ax1.reverse()  # Needed to have the vertical axis thr right way on the graph
 
     # Split the images into the grid
     error_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
@@ -542,10 +584,10 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
     img_train_count_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
     for i, bin0_id in enumerate(bin_centers_ax0):
         # Filter to keep only relevant images based on ax 0
-        bin_ax0_results = plane_results[plane_results[plane[0]].between(bins_ax0[i], bins_ax0[i+1])]
+        bin_ax0_results = plane_results[plane_results[plane[0]].between(bins_ax0[i], bins_ax0[i + 1])]
         for j, bin1_id in enumerate(bin_centers_ax1):
             # Filter to keep only relevant images based on ax 1
-            bin_results = bin_ax0_results[bin_ax0_results[plane[1]].between(bins_ax1[j], bins_ax1[j+1])]
+            bin_results = bin_ax0_results[bin_ax0_results[plane[1]].between(bins_ax1[j], bins_ax1[j + 1])]
             # Calculate average error
             error_grid.loc[bin1_id, bin0_id] = bin_results[f'rmse_{rmse_axis}'].mean()
             # Save test image count per grid cell
@@ -554,7 +596,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
     error_grid.fillna(np.nan, inplace=True)
     print(error_grid)
 
-     # Save train image count per grid cell
+    # Save train image count per grid cell
     img_train_count_grid = pd.DataFrame(index=bin_centers_ax1, columns=bin_centers_ax0)
     if annotations_train is not None:
         rmse_axis_min = plane_results[rmse_axis].min()
@@ -603,8 +645,9 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
             plt.colorbar(im, ax=ax[id])
             ax[id].set_xlabel(f'{plane[0]} [mm]')
             ax[id].set_ylabel(f'{plane[1]} [mm]')
-        plt.figtext(.25, .05, 'White sections represent NaN values\ndue to a lack of images', ha='center')
+        # plt.figtext(.25, .05, 'White sections represent NaN values\ndue to a lack of images', ha='center')
         plt.tight_layout()
+        plt.subplots_adjust(left=0.075, bottom=0.05, right=0.925, top=0.95, wspace=0.15, hspace=0.15)
         plt.show(block=True)
 
     # Plot and show results
@@ -658,6 +701,7 @@ def wandb_init(configs: dict):
         config={
             "trajectories_train": configs['data']['trajectories_train'],
             "trajectories_valid": configs['data']['trajectories_valid'],
+            "trajectories_test": configs['data']['trajectories_test'],
             "rescale_pos": configs['data']['rescale_pos'],
             "subnet": configs['training']['sub_model'],
             "weights_file_addon": configs['training']['weights_file_addon'],

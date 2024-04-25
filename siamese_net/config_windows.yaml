@@ -17,17 +17,17 @@ data:
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  weights_file_addon: 'test' # "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: True
   cam_inputs:
     - Left
-    - Right
+    # - Right
     - Side
   num_fc_hidden_units: 256
   train_bs: 2
   valid_bs: 1
   test_bs: 2
-  max_epochs: 5
+  max_epochs: 1
   patience: 2
   lr: 0.005
   lr_scheduler:
