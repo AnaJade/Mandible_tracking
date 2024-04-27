@@ -4,3 +4,11 @@ annotations:
   log_name: trajsplitYXZs20.txt
 images:
   img_root: C:\Users\anaja\OneDrive\Documents\Ecole\TUHH\Semester 3\Projektarbeit\Dataset_sample
+merge_trajectories:
+  traj_to_merge:
+    - traj_random_slbo.csv
+    - traj_random_slt.csv
+    - traj_random_srbo.csv
+    - traj_random_srt.csv
+  merged_file_name: traj_random_merged
+  train_ratio: 0.8

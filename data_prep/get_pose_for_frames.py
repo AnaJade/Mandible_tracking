@@ -1,3 +1,4 @@
+import argparse
 import pathlib
 from tqdm import tqdm
 import numpy as np
@@ -48,8 +49,19 @@ def get_pose_for_time(time, df) -> np.array:
 
 
 if __name__ == '__main__':
-    # Extract info from config file and build relevant paths
-    config_file = pathlib.Path("data_prep/data_config.yaml")
+    # Set up the argument parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path',
+                        help='Path to the config file',
+                        type=str)
+
+    args = parser.parse_args()
+    config_file = pathlib.Path(args.config_path)
+    # config_file = pathlib.Path("data_prep/data_config.yaml")
+
+    if not config_file.exists():
+        print(f'Config file not found at {args.config_path}')
+        raise SystemExit(1)
     configs = utils.load_configs(config_file)
 
     data_folder_path = pathlib.Path(configs['annotations']['data_folder_path'])
