@@ -1,7 +1,7 @@
 annotations:
   data_folder_path: /data/Boudreault/mandible_videos
-  traj_name: traj_slice_y90_sec0
-  log_name: trajslicey90sec0.txt
+  traj_name: traj_random10_occ
+  log_name: trajrandom10occ.txt
 images:
   img_root: /data/Boudreault/mandible_data
 merge_trajectories:
@@ -33,5 +33,38 @@ merge_trajectories:
     - traj_slice_y90_sec0.csv
     - traj_slice_y90_sec1.csv
     - traj_slice_y90_sec2.csv
-  merged_file_name: traj_slice_y
-  train_ratio: 0.75
+    - traj_slice_z10_sec0.csv
+    - traj_slice_z10_sec1.csv
+    - traj_slice_z10_sec2.csv
+    - traj_slice_z10_sec3.csv
+    - traj_slice_z20_sec0.csv
+    - traj_slice_z20_sec1.csv
+    - traj_slice_z20_sec2.csv
+    - traj_slice_z20_sec3.csv
+    - traj_slice_z30_sec0.csv
+    - traj_slice_z30_sec1.csv
+    - traj_slice_z30_sec2.csv
+    - traj_slice_z30_sec3.csv
+    - traj_slice_z40_sec0.csv
+    - traj_slice_z40_sec1.csv
+    - traj_slice_z40_sec2.csv
+    - traj_slice_z40_sec3.csv
+    - traj_slice_z50_sec0.csv
+    - traj_slice_z50_sec1.csv
+    - traj_slice_z50_sec2.csv
+    - traj_slice_z50_sec3.csv
+    - traj_slice_z60_sec0.csv
+    - traj_slice_z60_sec1.csv
+    - traj_slice_z60_sec2.csv
+    - traj_slice_z60_sec3.csv
+    - traj_slice_z70_sec0.csv
+    - traj_slice_z70_sec1.csv
+    - traj_slice_z70_sec2.csv
+    - traj_slice_z70_sec3.csv
+    - traj_slice_z80_sec0.csv
+    - traj_slice_z80_sec1.csv
+    - traj_slice_z80_sec2.csv
+    - traj_slice_z80_sec3.csv
+  merged_file_name: traj_slice_y_z
+  test_ratio: 0.2
+  valid_ratio: 0.25

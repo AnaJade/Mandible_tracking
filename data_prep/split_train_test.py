@@ -63,7 +63,7 @@ def split_imgs_by_pose(df: pd.DataFrame, bin_size: int) -> list:
                     empty_bin_count += 1
                     print(f'No images in X = [{bins_x[xi]}, {bins_x[xi + 1]}], '
                           f'Y = [{bins_y[yi]}, {bins_y[yi + 1]}], '
-                          f'Z = [{bins_z[zi]}, {bins_z[zi]}]')
+                          f'Z = [{bins_z[zi]}, {bins_z[zi+1]}]')
                 x_bins.append(df_bin)
             xy_bins.append(x_bins)
         img_bins.append(xy_bins)
@@ -141,30 +141,37 @@ if __name__ == '__main__':
     dataset_root = pathlib.Path(configs['images']['img_root'])
     anno_files = configs['merge_trajectories']['traj_to_merge']
     new_file_name_base = configs['merge_trajectories']['merged_file_name']
-    train_ratio = configs['merge_trajectories']['train_ratio']
-
+    test_ratio = configs['merge_trajectories']['test_ratio']
+    valid_ratio = configs['merge_trajectories']['valid_ratio']
+    
     # Merge all annotation files together
     annotations = utils_data.merge_annotations(dataset_root, anno_files)
 
     # Split into bins
     print("Splitting images into bins...")
+    print(f'Bin overview for {new_file_name_base}')
     split_imgs = split_imgs_by_pose(annotations, 10)
 
     # Split into train and test set
-    print("Splitting images into train and test sets...")
-    [train_df, test_df] = df_split_train_test(split_imgs, train_ratio)
+    print("Splitting images into train, valid and test sets...")
+    [full_train_df, test_df] = df_split_train_test(split_imgs, (1-test_ratio))
+    [train_df, valid_df] = df_split_train_test(full_train_df, (1-valid_ratio))
 
     # Save resulting df as csv
     print("Saving results...")
     train_file = dataset_root.joinpath(f'{new_file_name_base}_train.csv')
+    valid_file = dataset_root.joinpath(f'{new_file_name_base}_valid.csv')
     test_file = dataset_root.joinpath(f'{new_file_name_base}_test.csv')
     trajectories_file = dataset_root.joinpath(f'{new_file_name_base}.txt')
-    train_df.to_csv(train_file, index=False)
-    test_df.to_csv(test_file, index=False)
+    train_df.to_csv(train_file, index=True)
+    valid_df.to_csv(valid_file, index=True)
+    test_df.to_csv(test_file, index=True)
     with open(trajectories_file, 'w', encoding='utf-8') as f:
         f.writelines([f'{a}\n' for a in anno_files])
         f.close()
 
-    print(f'# train set images: {len(train_df)}\n# test set images: {len(test_df)}')
+    print(f'# train set images: {len(train_df)}\n'
+          f'# valid set images: {len(valid_df)}\n'
+          f'# test set images:  {len(test_df)}')
 
 

@@ -1,38 +1,18 @@
 data:
   dataset_root: /data/Boudreault/mandible_data
   trajectories_train:
-    - traj_contour0.csv
-    - traj_contour1.csv
-    - traj_random_qlbb.csv
-    - traj_random_qlbt.csv
-    - traj_random_qlfb.csv
-    - traj_random_qlft.csv
-    - traj_random_qrbb.csv
-    - traj_random_qrfb.csv
-    - traj_random_qrft.csv
-    - traj_random_slf.csv
-    - traj_random_srf.csv
-    - traj_random_slba.csv
-    - traj_random_srba.csv
-    - traj_random0.csv
-    - traj_random1.csv
+    - traj_slice_y_train.csv
+    - traj_slice_z_train.csv
   trajectories_valid:
-    - traj_random_sft.csv
-    - traj_random_sfb.csv
-    - traj_random_sbt.csv
-    - traj_random_sbb.csv
-    - traj_random3.csv
+    - traj_slice_y_valid.csv
+    - traj_slice_z_valid.csv
   trajectories_test:
-    - traj_random_slbo.csv
-    - traj_random_slt.csv
-    - traj_random_srbo.csv
-    - traj_random_srt.csv
-    - traj_random4.csv
-    - traj_splitYXZ_s20.csv
+    - traj_slice_y_test.csv
+    - traj_slice_z_test.csv
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  weights_file_addon: ""  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: False
   cam_inputs:
     - Left
@@ -49,5 +29,5 @@ training:
     step_size: 3
     gamma: 0.1
 wandb:
-  wandb_log: False
+  wandb_log: True
   project_name: 'Mandible-tracking' # 'Test-project'  'Mandible-tracking'

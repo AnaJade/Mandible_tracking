@@ -18,3 +18,10 @@ Save all necessary files in a folder titled `[trajectory name]`:
 
 ## Video formatting
 Run the `overlay_pose.py` script to overlay the robot pose on the merged video.
+
+## Creating pre-determined train and test sets
+The `split_train_test.py` script creates train and test sets from the annotation files of multiple trajectories. 
+The all annotation files are merged, and then images are split based on their position in the cube of possible mandible positions. 
+The annotation subsets of each subsection are then split into train and test sets, which are then combined to produce the final train and test annotation files. 
+
+The test set is created by using `test_ratio` images from all available annotations. The remainer are then used to create the complete training set, of which `valid_ratio`% of will be used to create the validation set. Images left over after that will make up the true training set. 
