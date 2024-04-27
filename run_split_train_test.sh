@@ -10,4 +10,4 @@ conda activate pytorch-env
 # echo $(pwd)
 
 # Run the split_train_test script
-PYTHONPATH=/home/Boudreault/Dokumente/Mandible_tracking python data_prep/split_train_test data_prep/data_config.yaml
+PYTHONPATH=/home/Boudreault/Dokumente/Mandible_tracking python data_prep/split_train_test.py data_prep/data_config.yaml

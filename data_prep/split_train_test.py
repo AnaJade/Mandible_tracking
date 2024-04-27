@@ -47,9 +47,10 @@ def split_imgs_by_pose(df: pd.DataFrame, bin_size: int) -> list:
                                       num=np.ceil((max_pos[1] - min_pos[1]) / bin_size).astype(np.int32))))
     bins_z = list(np.ceil(np.linspace(start=min_pos[2], stop=max_pos[2],
                                       num=np.ceil((max_pos[2] - min_pos[2]) / bin_size).astype(np.int32))))
-
+    print(f'Bin count: {len(bins_x)-1} in X, {len(bins_y)-1} in Y, {len(bins_z)-1} in Z')
     # Split images based on the bins
     img_bins = []
+    empty_bin_count = 0
     for zi in range(len(bins_z)-1):
         xy_bins = []
         df_xy = df[df['z'].between(bins_z[zi], bins_z[zi + 1])]
@@ -58,9 +59,15 @@ def split_imgs_by_pose(df: pd.DataFrame, bin_size: int) -> list:
             df_x = df_xy[df_xy['y'].between(bins_y[yi], bins_y[yi + 1])]
             for xi in range(len(bins_x)-1):
                 df_bin = df_x[df_x['x'].between(bins_x[xi], bins_x[xi + 1])]
+                if len(df_bin) == 0:
+                    empty_bin_count += 1
+                    print(f'No images in X = [{bins_x[xi]}, {bins_x[xi + 1]}], '
+                          f'Y = [{bins_y[yi]}, {bins_y[yi + 1]}], '
+                          f'Z = [{bins_z[zi]}, {bins_z[zi]}]')
                 x_bins.append(df_bin)
             xy_bins.append(x_bins)
         img_bins.append(xy_bins)
+    print(f'{empty_bin_count}/{(len(bins_x)-1)*(len(bins_y)-1)*len(bins_z)-1} bins had no images')
 
     return img_bins
 
@@ -145,14 +152,18 @@ if __name__ == '__main__':
 
     # Split into train and test set
     print("Splitting images into train and test sets...")
-    [train_df, test_df] = df_split_train_test(split_imgs, 0.8)
+    [train_df, test_df] = df_split_train_test(split_imgs, train_ratio)
 
     # Save resulting df as csv
     print("Saving results...")
     train_file = dataset_root.joinpath(f'{new_file_name_base}_train.csv')
     test_file = dataset_root.joinpath(f'{new_file_name_base}_test.csv')
+    trajectories_file = dataset_root.joinpath(f'{new_file_name_base}.txt')
     train_df.to_csv(train_file, index=False)
     test_df.to_csv(test_file, index=False)
+    with open(trajectories_file, 'w', encoding='utf-8') as f:
+        f.writelines([f'{a}\n' for a in anno_files])
+        f.close()
 
     print(f'# train set images: {len(train_df)}\n# test set images: {len(test_df)}')
 

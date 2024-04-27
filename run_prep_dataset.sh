@@ -10,7 +10,7 @@ conda activate pytorch-env
 # echo $(pwd)
 
 # Run the get_pose_for_frames script
-PYTHONPATH=/home/Boudreault/Dokumente/Mandible_tracking python data_prep/get_pose_for_frames data_prep/data_config.yaml
+PYTHONPATH=/home/Boudreault/Dokumente/Mandible_tracking python data_prep/get_pose_for_frames.py data_prep/data_config.yaml
 
 # Run the prep_dataset script
-PYTHONPATH=/home/Boudreault/Dokumente/Mandible_tracking python data_prep/prep_dataset data_prep/data_config.yaml
+PYTHONPATH=/home/Boudreault/Dokumente/Mandible_tracking python data_prep/prep_dataset.py data_prep/data_config.yaml
