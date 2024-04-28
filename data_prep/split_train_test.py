@@ -114,7 +114,9 @@ def df_split_train_test(data: list | pd.DataFrame, train_ratio: float, random=Tr
         df_test = pd.concat([d[1] for d in data_split], axis=0)
     else:
         [df_train, df_test] = split_df(data, train_ratio, random, random_seed)
-
+    # Remove any duplicates
+    df_train = df_train[~df_train.index.duplicated(keep='first')]
+    df_test = df_test[~df_test.index.duplicated(keep='first')]
     return [df_train, df_test]
 
 
@@ -141,11 +143,16 @@ if __name__ == '__main__':
     dataset_root = pathlib.Path(configs['images']['img_root'])
     anno_files = configs['merge_trajectories']['traj_to_merge']
     new_file_name_base = configs['merge_trajectories']['merged_file_name']
+    reduce_rot = configs['merge_trajectories']['filter_rot']
     test_ratio = configs['merge_trajectories']['test_ratio']
     valid_ratio = configs['merge_trajectories']['valid_ratio']
     
     # Merge all annotation files together
     annotations = utils_data.merge_annotations(dataset_root, anno_files)
+
+    # Filter data
+    if reduce_rot:
+        annotations = utils_data.filter_imgs_per_rotation_euler(annotations, None)
 
     # Split into bins
     print("Splitting images into bins...")

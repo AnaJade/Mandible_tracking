@@ -252,7 +252,31 @@ def filter_imgs_per_rotation(annotations: pd.DataFrame, rot_lim: list | None) ->
 
     for lim, q in zip(rot_lim, ['q1', 'q2', 'q3', 'q4']):
         annotations = annotations[annotations[q].between(*lim)]
-    # Merge all datasets to keep only their intersection
+    return annotations
+
+
+def filter_imgs_per_rotation_euler(annotations: pd.DataFrame, rot_lim: list | None) -> pd.DataFrame:
+    """
+    Filter the given annotation dataframe to keep only images that have a pose lying within the given limits
+    :param annotations: annotation dataframe (still with quaternions)
+    :param rot_lim: [[rxmin, rxmax], [rymin, rymax], [rzmin, rzmax]], leave empty for no limits
+    :return: filtered annotations
+    """
+    if rot_lim is None:
+        # Use default as no rotation
+        rot_lim = [[-90-5, -90+5], [90-10, 90+10], [-5, 5]]
+        # rot_lim = [[0, 1], [-1, 0], [0, 1], [0, 1]]
+    # Convert quaternion to eule
+    q = annotations[[f'q{i+1}' for i in range(4)]]
+    annotations = get_euler_annotations([annotations])[0]
+    # Filter
+    for lim, r in zip(rot_lim, ['Rx', 'Ry', 'Rz']):
+        annotations = annotations[annotations[r].between(*lim)]
+    # Replace euler angles with quaternions
+    annotations = pd.merge(annotations, q, left_index=True, right_index=True)
+    annotations = annotations[~annotations.index.duplicated(keep='first')]
+    annotations = annotations.drop(['Rx', 'Ry', 'Rz'], axis=1)
+    print(f'Removed {len(q) - len(annotations)} images')
     return annotations
 
 
@@ -300,7 +324,7 @@ def get_loss_per_img(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
 
 
 if __name__ == '__main__':
-    config_file = pathlib.Path("siamese_net/config.yaml")
+    config_file = pathlib.Path("siamese_net/config_windows.yaml")
     configs = utils.load_configs(config_file)
     dataset_root = pathlib.Path(configs['data']['dataset_root'])
     anno_paths_train = configs['data']['trajectories_train']
@@ -320,6 +344,13 @@ if __name__ == '__main__':
     annotations_train = merge_annotations(dataset_root, anno_paths_train)
     annotations_valid = merge_annotations(dataset_root, anno_paths_valid)
     annotations_test = merge_annotations(dataset_root, anno_paths_test)
+
+    """
+    Test rot filter function
+    """
+    train_reduce_rot = filter_imgs_per_rotation_euler(annotations_train, None)
+    print(len(annotations_train))
+    print(len(train_reduce_rot))
 
     # Create dataset object
     print("Initializing dataset object...")

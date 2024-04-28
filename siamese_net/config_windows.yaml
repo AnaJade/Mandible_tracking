@@ -3,6 +3,7 @@ data:
   trajectories_train:
     - traj_random0_mini.csv
     # - traj_random0.csv
+    # - traj_slice_y_z_train.csv
   trajectories_valid:
     - traj_random3_mini.csv
     # - traj_random3.csv
