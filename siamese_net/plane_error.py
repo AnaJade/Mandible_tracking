@@ -58,8 +58,8 @@ if __name__ == '__main__':
     if rescale_pos:
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
         # min_max_pos = [[299, 229, 279], [401, 311, 341]]
-        min_max_pos = [[254, 203, 234], [472, 335, 362]]
-        # min_max_pos = utils_data.get_dataset_min_max_pos(configs)
+        # min_max_pos = [[254, 203, 234], [472, 335, 362]]
+        min_max_pos = utils_data.get_dataset_min_max_pos(configs)
     else:
         min_max_pos = None
 
@@ -105,8 +105,8 @@ if __name__ == '__main__':
     rot_lim = [[0.499, 0.501], [-0.501, -0.499], [0.499, 0.501], [0.499, 0.501]]
     # Other options
     annotations = annotations_test
-    plane = 'yz'
-    grid_size = 5
+    plane = 'xz'
+    grid_size = 8
     print("Filtering the data...")
     # Filter images in the dataloader to keep the ones in the center plane
     if use_center_only:

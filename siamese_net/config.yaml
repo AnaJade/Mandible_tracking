@@ -1,29 +1,32 @@
 data:
   dataset_root: /data/Boudreault/mandible_data
   trajectories_train:
-    - traj_slice_y_train.csv
-    - traj_slice_z_train.csv
+    - traj_slice_y_red_rot_train.csv
+    - traj_slice_z_red_rot_train.csv
   trajectories_valid:
-    - traj_slice_y_valid.csv
-    - traj_slice_z_valid.csv
+    - traj_slice_y_red_rot_valid.csv
+    - traj_slice_z_red_rot_valid.csv
   trajectories_test:
-    - traj_slice_y_test.csv
-    - traj_slice_z_test.csv
+    - traj_slice_y_red_rot_test.csv
+    - traj_slice_z_red_rot_test.csv
+  resize_img:
+    img_h: 300
+    img_w: 480
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: ""  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  weights_file_addon: "reduced_rot_bs6"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: False
   cam_inputs:
     - Left
     - Right
     - Side
   num_fc_hidden_units: 256
-  train_bs: 4
+  train_bs: 6
   valid_bs: 4
   test_bs: 2
   max_epochs: 30
-  patience: 5
+  patience: 3
   lr: 0.01
   lr_scheduler:
     step_size: 3

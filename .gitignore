@@ -2,6 +2,8 @@
 __pycache__
 excel2csv.py
 *.csv
+*.gv
+*.pdf
 wandb/*
 siamese_net/__pycache__
 siamese_net/sweep_configs/*

@@ -15,6 +15,9 @@ data:
     # - traj_random_srt.csv
     # - traj_random4.csv
     # - traj_splitYXZ_s20.csv
+  resize_img:
+    img_h: 300
+    img_w: 480
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
@@ -22,7 +25,7 @@ training:
   use_pretrained: True
   cam_inputs:
     - Left
-    # - Right
+    - Right
     - Side
   num_fc_hidden_units: 256
   train_bs: 2

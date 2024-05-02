@@ -219,7 +219,7 @@ def filter_imgs_per_position(annotations: pd.DataFrame, axis_lim: list | None, a
     """
     if axis_lim is None and axis is not None:
         # axis_lim_center = [[345, 355], [265, 275], [305, 315]]  # center position +/- 5 mm
-        axis_lim_center = [[340, 360], [260, 280], [300, 320]]  # center position +/- 1 cm
+        axis_lim_center = [[335, 355], [270, 290], [300, 320]]  # center position +/- 1 cm
         axis_lim_all = [[290, 410], [235, 305], [275, 345]]     # Intended full range
         axis_lim = [axis_lim_center[i] if ax in axis else axis_lim_all[i] for i, ax in enumerate(['x', 'y', 'z'])]
     elif axis_lim is None and axis is None:
@@ -361,9 +361,9 @@ if __name__ == '__main__':
     dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, None, transforms)
 
     print("Creating dataloader...")
-    dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=False, num_workers=4)
-    dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=4)
-    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
+    dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=False, num_workers=0)
+    dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=0)
+    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
 
     print("View position and orientation distribution in the dataset")
     # Convert quaternions to euler angles

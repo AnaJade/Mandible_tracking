@@ -58,8 +58,8 @@ if __name__ == '__main__':
     if rescale_pos:
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
         # min_max_pos = [[299, 229, 279], [401, 311, 341]]
-        min_max_pos = [[254, 203, 234], [472, 335, 362]]    # Min and max values for all trajectories
-        # min_max_pos = utils_data.get_dataset_min_max_pos(configs)
+        # min_max_pos = [[254, 203, 234], [472, 335, 362]]    # Min and max values for all trajectories
+        min_max_pos = utils_data.get_dataset_min_max_pos(configs)
     else:
         min_max_pos = None
 

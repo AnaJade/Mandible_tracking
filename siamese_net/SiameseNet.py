@@ -147,6 +147,15 @@ class SiameseNetwork(nn.Module):
         print("Fully connected layer")
         print(self.fc)
 
+    def get_subnet_layer_count(self):
+        subnet_layer_count = [module for module in self.subnet.modules() if not isinstance(module, nn.Sequential)]
+        return len(subnet_layer_count)
+
+    def get_subnet_param_count(self):
+        trainable_param_count = sum(p.numel() for p in self.subnet.parameters() if p.requires_grad)
+        param_count = sum(p.numel() for p in self.subnet.parameters())
+        return [trainable_param_count, param_count]
+
 
 def train_1_epoch(model, device, train_loader, criterion, optimizer, log_wandb=False):
     model.train()
@@ -413,7 +422,7 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
         print(f'Average orientation error:\n{rot_euler_avg_err}')
 
         if log_wandb:
-            wandb_log('',
+            wandb_log('end',
                       test_loss=test_rmse,
                       test_x_rmse=rmse_per_dim.loc['x', 'RMSE'],
                       test_y_rmse=rmse_per_dim.loc['y', 'RMSE'],
@@ -560,7 +569,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
                                                         np.array(min_max_pos[0]), np.array(min_max_pos[1]))
                     targets = utils_data.rescale_position(targets[0, ...].detach().cpu().numpy(),
                                                           np.array(min_max_pos[0]), np.array(min_max_pos[1]))
-                # Get MSE on remaining axis
+                # Get RMSE on remaining axis
                 rmse = mean_squared_error(targets[:, rmse_axis_id], preds[:, rmse_axis_id], squared=False)
                 plane_results.append({plane[0]: targets[0, plane_axis_id[0]],
                                       plane[1]: targets[0, plane_axis_id[1]],
@@ -617,7 +626,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
         # Plot and show results
         heatmap_data = [[error_grid.to_numpy().astype(float), img_count_grid.to_numpy()],
                         img_train_count_grid.to_numpy().astype(float)]
-        fig, ax = plt.subplots(1, len(heatmap_data))
+        fig, ax = plt.subplots(len(heatmap_data), 1)
         cmap = matplotlib.cm.get_cmap('viridis')
         cmap.set_bad(color='white')
         for id, data in enumerate(heatmap_data):
@@ -649,7 +658,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
         plt.tight_layout()
         plt.subplots_adjust(left=0.075, bottom=0.05, right=0.925, top=0.95, wspace=0.15, hspace=0.15)
         plt.show(block=True)
-
+    """"
     # Plot and show results
     grid_data = error_grid.to_numpy().astype(float)
     img_count_data = img_count_grid.to_numpy()
@@ -691,6 +700,7 @@ def get_plane_error(model: SiameseNetwork, device, dataloader, min_max_pos, plan
         plt.tight_layout()
         plt.figtext(.5, .05, 'White sections represent NaN values due to a lack of images', ha='center')
         plt.show(block=True)
+    """
 
 
 def wandb_init(configs: dict):
@@ -702,6 +712,7 @@ def wandb_init(configs: dict):
             "trajectories_train": configs['data']['trajectories_train'],
             "trajectories_valid": configs['data']['trajectories_valid'],
             "trajectories_test": configs['data']['trajectories_test'],
+            "image_input_shape": [configs['data']['resize_img']['img_h'], configs['data']['resize_img']['img_w']],
             "rescale_pos": configs['data']['rescale_pos'],
             "subnet": configs['training']['sub_model'],
             "weights_file_addon": configs['training']['weights_file_addon'],
@@ -732,7 +743,7 @@ def wandb_log(phase: str, **kwargs):
 
 
 if __name__ == '__main__':
-    config_file = pathlib.Path("siamese_net/config.yaml")
+    config_file = pathlib.Path("siamese_net/config_windows.yaml")
     configs = utils.load_configs(config_file)
     dataset_root = pathlib.Path(configs['data']['dataset_root'])
     anno_paths_train = configs['data']['trajectories_train']
@@ -748,7 +759,13 @@ if __name__ == '__main__':
 
     # Define the model
     model = SiameseNetwork(configs)
-    # print(model.print_layers())
+
+    # Get subnet info
+    subnet_layer_nb = model.get_subnet_layer_count()
+    print(f'{subnet_layer_nb} layers in each {model.subnet_name} model')
+    [subnet_tparam_nb, subnet_param_nb] = model.get_subnet_param_count()
+    print(f'{subnet_tparam_nb} trainable parameters and {subnet_param_nb} total parameters in each '
+          f'{model.subnet_name} model')
 
     img = torch.randn(1, 3, 1200, 1920)
 
