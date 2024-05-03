@@ -41,6 +41,8 @@ if __name__ == '__main__':
     anno_paths_train = configs['data']['trajectories_train']
     anno_paths_valid = configs['data']['trajectories_valid']
     anno_paths_test = configs['data']['trajectories_test']
+    resize_img_h = configs['data']['resize_img']['img_h']
+    resize_img_w = configs['data']['resize_img']['img_w']
     rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
@@ -79,7 +81,8 @@ if __name__ == '__main__':
     # Create dataset object
     print("Initializing dataset object...")
     # Create dataset objects
-    transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
+    transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
+                             NormTransform()])  # Remember to also change the annotations for other transforms
     dataset = MandibleDataset(dataset_root, cam_inputs, annotations, min_max_pos, transforms)
 
     print("Creating dataloader...")
@@ -133,10 +136,6 @@ if __name__ == '__main__':
                     ax.set_title(f'Side')
                 if id % 3 == 0:
                     ax.set_ylabel(f'{list(all_outputs[int(id/3)][0].shape[-2:])}')
-                    # ax.set_xlabel('testx')
-                    # ax.set_ylabel('testx')
-                # ax.set_yticklabels([])
-                # ax.set_xticklabels([])
                 ax.set_xticks([])
                 ax.set_yticks([])
             plt.show()

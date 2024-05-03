@@ -40,6 +40,7 @@ if __name__ == '__main__':
     anno_paths_test = configs['data']['trajectories_test']
     resize_img_h = configs['data']['resize_img']['img_h']
     resize_img_w = configs['data']['resize_img']['img_w']
+    grayscale = configs['data']['grayscale']
     rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
@@ -85,8 +86,14 @@ if __name__ == '__main__':
     # Create dataset object
     print("Initializing dataset object...")
     # Create dataset objects
-    transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
-                             NormTransform()])  # Remember to also change the annotations for other transforms
+    # Create dataset objects
+    if grayscale:
+        transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
+                                 torchvision.transforms.Grayscale(),
+                                 NormTransform()])  # Remember to also change the annotations for other transforms
+    else:
+        transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
+                                 NormTransform()])
     dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, min_max_pos, transforms)
     dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, min_max_pos, transforms)
     dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)

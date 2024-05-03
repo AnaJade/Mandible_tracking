@@ -18,6 +18,7 @@ data:
   resize_img:
     img_h: 300
     img_w: 480
+  grayscale: True
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'

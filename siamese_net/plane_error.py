@@ -39,6 +39,8 @@ if __name__ == '__main__':
     anno_paths_train = configs['data']['trajectories_train']
     anno_paths_valid = configs['data']['trajectories_valid']
     anno_paths_test = configs['data']['trajectories_test']
+    resize_img_h = configs['data']['resize_img']['img_h']
+    resize_img_w = configs['data']['resize_img']['img_w']
     rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
@@ -118,7 +120,8 @@ if __name__ == '__main__':
     annotations = utils_data.filter_imgs_per_position(annotations, axis_lim_full, None)
 
     print("Creating the dataloader...")
-    transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
+    transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
+                             NormTransform()])  # Remember to also change the annotations for other transforms
     dataset = MandibleDataset(dataset_root, cam_inputs, annotations, min_max_pos, transforms)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=0)
 

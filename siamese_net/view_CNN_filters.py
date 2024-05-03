@@ -79,11 +79,3 @@ if __name__ == "__main__":
     plt.title(f'Kernel values of the last {model.subnet_name} conv layer')
     plt.show(block=True)
     """
-
-    # TODO: Get activations after each block to see when the screws start to be recognized
-    dataset_root = pathlib.Path(configs['data']['dataset_root'])
-    sample_img_l = dataset_root.joinpath(r'Left/traj_contour0_0_l.jpg')
-    sample_img_r = dataset_root.joinpath(r'Right/traj_contour0_0_r.jpg')
-    sample_img_s = dataset_root.joinpath(r'Side/traj_contour0_0_s.jpg')
-
-

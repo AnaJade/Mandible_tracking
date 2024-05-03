@@ -54,7 +54,8 @@ if __name__ == '__main__':
     if rescale_pos:
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
         # min_max_pos = [[299, 229, 279], [401, 311, 341]]
-        min_max_pos = [[254, 203, 234], [472, 335, 362]]    # Min and max values for all trajectories
+        # min_max_pos = [[254, 203, 234], [472, 335, 362]]    # Min and max values for all trajectories
+        min_max_pos = [[290, 235, 275], [410, 305, 345]]  # Min and max values for all trajectories
         # min_max_pos = utils_data.get_dataset_min_max_pos(configs)
     else:
         min_max_pos = None
@@ -66,6 +67,9 @@ if __name__ == '__main__':
     # Merge all annotation files based on config file
     print("Loading annotation files...")
     annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
+    # Filter images
+    # annotations = utils_data.filter_imgs_per_position(annotations, [[290, 390], [235, 305], [275, 345]], None)
+    annotations_test = utils_data.filter_imgs_per_rotation_euler(annotations_test, None)
 
     # Create dataset object
     print("Creating dataloader...")
@@ -84,7 +88,15 @@ if __name__ == '__main__':
     model.to(device)
 
     print("Performing inference...")
-    preds = get_preds(model, device, dataloader_test, min_max_pos)
+    occ = False
+    if occ:
+        pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}_occ.csv")
+    else:
+        pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}.csv")
+    if pred_file.exists():
+        preds = pd.read_csv(pred_file)
+    else:
+        preds = get_preds(model, device, dataloader_test, min_max_pos)
 
     # Calculate the loss
     test_rmse = mean_squared_error(annotations_test.to_numpy(), preds.to_numpy(), squared=False)
@@ -136,4 +148,5 @@ if __name__ == '__main__':
     print("Saving results...")
     preds_df.to_csv(f"siamese_net/preds/{weights_file}.csv")
     print(preds_df.head(5))
+
 

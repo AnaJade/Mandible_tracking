@@ -36,6 +36,7 @@ class SiameseNetwork(nn.Module):
         self.cam_inputs = configs['training']['cam_inputs']
         self.num_subnets = len(self.cam_inputs)
         self.nb_hidden = configs['training']['num_fc_hidden_units']
+        self.grayscale = configs['data']['grayscale']
 
         # Init model variables
         self.subnet = None
@@ -80,6 +81,10 @@ class SiameseNetwork(nn.Module):
         # Load weights if needed
         if not self.use_pretrained:
             self.subnet.apply(self.init_weights)
+
+        # Switch first conv layer to accept grayscale
+        if self.grayscale:
+            self.subnet[0] = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
 
     def efficientnet_init(self):
         # Check if the version of efficientnet is valid
@@ -714,6 +719,7 @@ def wandb_init(configs: dict):
             "trajectories_test": configs['data']['trajectories_test'],
             "image_input_shape": [configs['data']['resize_img']['img_h'], configs['data']['resize_img']['img_w']],
             "rescale_pos": configs['data']['rescale_pos'],
+            "grayscale": configs['data']['grayscale'],
             "subnet": configs['training']['sub_model'],
             "weights_file_addon": configs['training']['weights_file_addon'],
             "use_pretrained": configs['training']['use_pretrained'],
