@@ -483,6 +483,15 @@ def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
     return preds
 
 
+def rgb2gray(rgb):
+    # From https://stackoverflow.com/questions/12201577/how-can-i-convert-an-rgb-image-into-grayscale-in-python
+    r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    gray = gray[:, :, None]
+
+    return gray.astype(np.uint8)
+
+
 def overlay_activation_map(imgs: list[np.ndarray], heatmaps: list[np.ndarray]) -> list:
     """
     Format the heatmaps and overlay it on the original image
@@ -495,7 +504,13 @@ def overlay_activation_map(imgs: list[np.ndarray], heatmaps: list[np.ndarray]) -
     heatmaps = [np.uint8(255 * (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))) for heatmap in
                 heatmaps]
     heatmaps = [cv2.applyColorMap(heatmap, cv2.COLORMAP_JET) for heatmap in heatmaps]
-    overlayed_imgs = [cv2.addWeighted(heatmap, 0.35, img, 0.65, 0.0) for heatmap, img in zip(heatmaps, imgs)]
+    # Convert images to grayscale
+    if imgs[0].shape[-1] > 1:
+        imgs = [np.repeat(rgb2gray(img)[:, :, :], 3, axis=2) for img in imgs]
+    else:
+        imgs = [np.repeat(img[:, :, :], 3, axis=2) for img in imgs]
+    overlayed_imgs = [cv2.addWeighted(heatmap, 0.35, img, 0.65, 0.0) for heatmap, img in
+                      zip(heatmaps, imgs)]
     return overlayed_imgs
 
 
@@ -518,6 +533,9 @@ def get_feature_maps(model: SiameseNetwork, device, dataloader, cam_inputs):
             images = [(img.transpose((1, 2, 0)) * 255).astype('uint8') for img in images]
             # Overlay feature maps
             heatmap_imgs = overlay_activation_map(images, outputs)
+            # Reshape images if  grayscale
+            if images[0].shape[-1] == 1:
+                images = [np.repeat(img[:, :, :], 3, axis=2) for img in images]
             # Display results
             heatmaps = [np.maximum(np.mean(heatmap, axis=0), 0) / np.max(heatmap) for heatmap in outputs]
             plt.figure(figsize=(3 * len(heatmap_imgs), 7))

@@ -16,13 +16,13 @@ data:
     # - traj_random4.csv
     # - traj_splitYXZ_s20.csv
   resize_img:
-    img_h: 300
-    img_w: 480
+    img_h: 1200
+    img_w: 1920
   grayscale: True
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: 'test' # "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  weights_file_addon: 'grayscale' # "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: True
   cam_inputs:
     - Left

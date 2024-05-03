@@ -86,7 +86,6 @@ if __name__ == '__main__':
     # Create dataset object
     print("Initializing dataset object...")
     # Create dataset objects
-    # Create dataset objects
     if grayscale:
         transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
                                  torchvision.transforms.Grayscale(),
