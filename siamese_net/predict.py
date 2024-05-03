@@ -3,6 +3,8 @@ import pathlib
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+from cycler import cycler
 import torch
 import torchvision
 from torch.utils.data import DataLoader
@@ -37,13 +39,19 @@ if __name__ == '__main__':
     configs = utils.load_configs(config_file)
     dataset_root = pathlib.Path(configs['data']['dataset_root'])
     anno_paths_test = configs['data']['trajectories_test']
+    resize_img_h = configs['data']['resize_img']['img_h']
+    resize_img_w = configs['data']['resize_img']['img_w']
+    grayscale = configs['data']['grayscale']
     rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
     cam_inputs = configs['training']['cam_inputs']
     test_bs = configs['training']['test_bs']
     weights_file_addon = configs['training']['weights_file_addon']
+    rename_side = True if 'center_rmBackground' in cam_inputs else False
 
+    if rename_side:
+        cam_inputs[-1] = 'Side'
     cam_str = ''.join([c[0].lower() for c in cam_inputs])
     if weights_file_addon:
         weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
@@ -71,31 +79,45 @@ if __name__ == '__main__':
     # annotations = utils_data.filter_imgs_per_position(annotations, [[290, 390], [235, 305], [275, 345]], None)
     annotations_test = utils_data.filter_imgs_per_rotation_euler(annotations_test, None)
 
-    # Create dataset object
-    print("Creating dataloader...")
-    # Create dataset objects
-    transforms = v2.Compose([NormTransform()])  # Remember to also change the annotations for other transforms
-    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
-    # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
-    # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
-    dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
-
-    # Define the model
-    print("Loading model...")
-    model = SiameseNetwork(configs)
-    # Load trained weights
-    model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}.pth"))
-    model.to(device)
-
-    print("Performing inference...")
-    occ = False
-    if occ:
+    # Get pred file name
+    # Set file name
+    if any('occ' in img for img in annotations_test.index.values):
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}_occ.csv")
     else:
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}.csv")
+
     if pred_file.exists():
-        preds = pd.read_csv(pred_file)
+        print(f'Loading preds from {pred_file}')
+        preds = pd.read_csv(pred_file).set_index('frame')
+        preds = preds[preds.columns.intersection(preds.columns[:7])]
+        preds = preds.loc[annotations_test.index, :]
     else:
+        # Create dataset object
+        print("Creating dataloader...")
+        # Create dataset objects
+        if rename_side:
+            cam_inputs[-1] = 'Side'
+        if grayscale:
+            transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
+                                     torchvision.transforms.Grayscale(),
+                                     NormTransform()])  # Remember to also change the annotations for other transforms
+        else:
+            transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
+                                     NormTransform()])
+        dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
+        # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
+        # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
+        dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
+
+        # Define the model
+        print("Loading model...")
+        model = SiameseNetwork(configs)
+        # Load trained weights
+        model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}.pth"))
+        model.to(device)
+
+        print("Performing inference...")
+        # Get predictions
         preds = get_preds(model, device, dataloader_test, min_max_pos)
 
     # Calculate the loss
@@ -109,44 +131,87 @@ if __name__ == '__main__':
     print(f'RMSE per dimension: \n{rmse_per_dim}')
 
     # Calculate the loss on the normalized data
+    """
     norm_annotations = utils_data.normalize_position(torch.Tensor(annotations_test.to_numpy()),
                                                      np.array(min_max_pos[0]), np.array(min_max_pos[1]))
     norm_preds = utils_data.normalize_position(torch.Tensor(preds.to_numpy()),
                                                np.array(min_max_pos[0]), np.array(min_max_pos[1]))
     test_rmse = mean_squared_error(norm_annotations, norm_preds, squared=False)
     print(f'Test RMSE on normalized data: {test_rmse}')
+    """
 
     # Calculate the rotation error
     rot_q_diff = utils.hamilton_prod(annotations_test.to_numpy()[:, -4:], preds.to_numpy()[:, -4:])
 
     # Convert error quaternion to Euler
     rot_euler_error = utils.quaternion2euler(rot_q_diff)
+    rot_euler_error = np.sqrt(np.square(rot_euler_error))   # 'RMSE' on the euler eurer
     rot_euler_avg_err = pd.DataFrame(np.mean(rot_euler_error, axis=0), index=['Rx_err', 'Ry_err', 'Rz_err'],
                                      columns=['Rot_err'])
     print(f'Average orientation error:\n{rot_euler_avg_err}')
 
-    # Format to pandas df
-    preds_df = annotations_test.copy()
-    preds_df.iloc[:, :] = preds
+    if not pred_file.exists():
+        # Format to pandas df
+        preds_df = annotations_test.copy()
+        preds_df.iloc[:, :] = preds
 
-    # Append position difference
-    pos_diff = annotations_test.to_numpy()[:, :3] - preds.to_numpy()[:, :3]
-    pos_diff = pd.DataFrame(pos_diff, columns=['delta_x', 'delta_y', 'delta_z'], index=preds_df.index)
-    preds_df = pd.concat([preds_df, pos_diff], axis=1)
+        # Append position difference
+        pos_diff = annotations_test.to_numpy()[:, :3] - preds.to_numpy()[:, :3]
+        pos_diff = pd.DataFrame(pos_diff, columns=['delta_x', 'delta_y', 'delta_z'], index=preds_df.index)
+        preds_df = pd.concat([preds_df, pos_diff], axis=1)
 
-    # Append the position, orientation and total RMSE for each image
-    rmse_per_image = utils_data.get_loss_per_img(annotations_test.to_numpy(), preds.to_numpy())
-    rmse_per_image.index = preds_df.index
-    preds_df = pd.concat([preds_df, rmse_per_image], axis=1)
+        # Append the position, orientation and total RMSE for each image
+        rmse_per_image = utils_data.get_loss_per_img(annotations_test.to_numpy(), preds.to_numpy())
+        rmse_per_image.index = preds_df.index
+        preds_df = pd.concat([preds_df, rmse_per_image], axis=1)
 
-    # Add euler error for each image
-    rot_err_per_image = pd.DataFrame(rot_euler_error, columns=['Rx_err', 'Ry_err', 'Rz_err'])
-    rot_err_per_image.index = preds_df.index
-    preds_df = pd.concat([preds_df, rot_err_per_image], axis=1)
+        # Add euler error for each image
+        rot_err_per_image = pd.DataFrame(rot_euler_error, columns=['Rx_err', 'Ry_err', 'Rz_err'])
+        rot_err_per_image.index = preds_df.index
+        preds_df = pd.concat([preds_df, rot_err_per_image], axis=1)
 
-    # Save preds as csv
-    print("Saving results...")
-    preds_df.to_csv(f"siamese_net/preds/{weights_file}.csv")
-    print(preds_df.head(5))
+        # Save preds as csv
+        print(f"Saving results in {pred_file}...")
+        preds_df.to_csv(pred_file)
+        print(preds_df.head(5))
 
+    # Get Pearson product-moment correlation coefficients
+    pcc_per_axis = utils_data.get_pcc_per_axis(annotations_test, preds)
+    print(f'Pearson correlation coefficient per axis:\n{pcc_per_axis}')
+
+    # Get the graph plotting true vs predicted values
+    # Convert from quaternion to euler
+    annotations_test_euler = utils_data.get_euler_annotations([annotations_test])[0]
+    preds_euler = utils_data.get_euler_annotations([preds])[0]
+    for traj_file in anno_paths_test:
+        traj = pathlib.Path(traj_file).stem
+        anno_traj = annotations_test_euler.filter(like=traj, axis=0)
+        preds_traj = preds_euler.filter(like=traj, axis=0)
+
+        # Split position and orientation + shift values to relative pos/rot
+        anno_pos = anno_traj[['x', 'y', 'z']].to_numpy() - np.min(anno_traj[['x', 'y', 'z']].to_numpy(), axis=0)
+        preds_pos = preds_traj[['x', 'y', 'z']].to_numpy() - np.min(anno_traj[['x', 'y', 'z']].to_numpy(), axis=0)
+        annos_ori = anno_traj[['Rx', 'Ry', 'Rz']].to_numpy() - np.array([-90, 90, 0])
+        preds_ori = preds_traj[['Rx', 'Ry', 'Rz']].to_numpy() - np.array([-90, 90, 0])
+
+        # Plot
+        frame_id = np.arange(0, len(anno_traj))
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 5))
+        line_colours = ['r', 'g', 'b']
+        colour_cycler = cycler(color=line_colours)
+        ax1.set_prop_cycle(colour_cycler)
+        ax2.set_prop_cycle(colour_cycler)
+        ax1.plot(frame_id, anno_pos, label=['gt_x', 'gt_y', 'gt_z'], linestyle='-')
+        ax1.plot(frame_id, preds_pos, label=['pred_x', 'pred_y', 'pred_z'], linestyle='--')
+        ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        ax1.set_ylabel('Displacement [mm]')
+        ax2.plot(frame_id, annos_ori, label=['gt_x', 'gt_y', 'gt_z'], linestyle='-')
+        ax2.plot(frame_id, preds_ori, label=['pred_x', 'pred_y', 'pred_z'], linestyle='--')
+        ax2.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        ax2.set_xlabel('Frame number')
+        ax2.set_ylabel('Rotation [°]')
+        fig.suptitle(f'True vs predicted relative displacement and rotation for {traj}')
+        plt.tight_layout()
+        plt.subplots_adjust(left=0.075, bottom=0.05, right=0.875, top=0.95, wspace=0.15, hspace=0.15)
+        plt.show()
 

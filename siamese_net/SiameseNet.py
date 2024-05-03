@@ -334,6 +334,9 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
     cam_inputs = configs['training']['cam_inputs']
     nb_hidden = configs['training']['num_fc_hidden_units']
     weights_file_addon = configs['training']['weights_file_addon']
+    rename_side = True if 'center_rmBackground' in cam_inputs else False
+    if rename_side:
+        cam_inputs[-1] = 'Side'
 
     train_loader = dataloaders[0]
     valid_loader = dataloaders[1]
@@ -343,6 +346,9 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
         weights_file = f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
     else:
         weights_file = f"{subnet_name}_{cam_str}cams_{nb_hidden}"
+
+    if rename_side:
+        cam_inputs[-1] = 'center_rmBackground'
 
     if log_wandb:
         wandb_init(configs)

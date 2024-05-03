@@ -36,7 +36,7 @@ class MandibleDataset(Dataset):
         self.transforms = transforms
         self.img_names = img_labels.index.values.tolist()
         self.cam_inputs = cam_inputs
-        self.cameras = {'Left': 'l', 'Right': 'r', 'Side': 's'}
+        self.cameras = {'Left': 'l', 'Right': 'r', 'Side': 's', 'center_rmBackground': 's'}
 
         self.pos_min = None
         self.pos_max = None
@@ -321,6 +321,25 @@ def get_loss_per_img(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
 
     rmse_per_img = pd.DataFrame.from_dict(rmse_per_img, orient='index', columns=['RMSE_pos', 'RMSE_ori', 'RMSE'])
     return rmse_per_img
+
+
+def get_pcc_per_axis(annotations: pd.DataFrame, preds: pd.DataFrame, angle='Euler') -> pd.DataFrame:
+    """
+    Get the Pearson product-moment correlation coefficients per axis
+    :param annotations: annotations dataframe
+    :param preds: prediction dataframe
+    :param angle: whether to use quaternions or Euler angles
+    :return: dataframe with the PCC per axis
+    """
+    if angle == 'Euler':
+        annotations = get_euler_annotations([annotations])[0]
+        preds = get_euler_annotations([preds])[0]
+
+    pcc_per_axis = {}
+    for ax in annotations.columns:
+        pcc_per_axis[ax] = np.corrcoef(annotations[ax].to_numpy(), preds[ax].to_numpy(), rowvar=False)[0, 1]
+    pcc_per_axis = pd.DataFrame.from_dict(pcc_per_axis, orient='index', columns=['PCC'])
+    return pcc_per_axis
 
 
 if __name__ == '__main__':

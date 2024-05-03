@@ -43,6 +43,7 @@ if __name__ == '__main__':
     anno_paths_test = configs['data']['trajectories_test']
     resize_img_h = configs['data']['resize_img']['img_h']
     resize_img_w = configs['data']['resize_img']['img_w']
+    grayscale = configs['data']['grayscale']
     rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
@@ -51,7 +52,10 @@ if __name__ == '__main__':
     valid_bs = configs['training']['valid_bs']
     test_bs = configs['training']['test_bs']
     weights_file_addon = configs['training']['weights_file_addon']
+    rename_side = True if 'center_rmBackground' in cam_inputs else False
 
+    if rename_side:
+        cam_inputs[-1] = 'Side'
     cam_str = ''.join([c[0].lower() for c in cam_inputs])
     if weights_file_addon:
         weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
@@ -81,8 +85,15 @@ if __name__ == '__main__':
     # Create dataset object
     print("Initializing dataset object...")
     # Create dataset objects
-    transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
-                             NormTransform()])  # Remember to also change the annotations for other transforms
+    if rename_side:
+        cam_inputs[-1] = 'center_rmBackground'
+    if grayscale:
+        transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
+                                 torchvision.transforms.Grayscale(),
+                                 NormTransform()])  # Remember to also change the annotations for other transforms
+    else:
+        transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
+                                 NormTransform()])
     dataset = MandibleDataset(dataset_root, cam_inputs, annotations, min_max_pos, transforms)
 
     print("Creating dataloader...")

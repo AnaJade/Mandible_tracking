@@ -110,14 +110,6 @@ def hamilton_prod(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     return q
 
 
-def q2rot(q: np.ndarray) -> np.ndarray:
-    """
-    Create a rotation matrix from a quaterion
-    :param q:
-    :return:
-    """
-    return q
-
 
 if __name__ == '__main__':
     # Load data config file

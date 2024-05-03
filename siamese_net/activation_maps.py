@@ -50,7 +50,10 @@ if __name__ == '__main__':
     valid_bs = configs['training']['valid_bs']
     test_bs = configs['training']['test_bs']
     weights_file_addon = configs['training']['weights_file_addon']
+    rename_side = True if 'center_rmBackground' in cam_inputs else False
 
+    if rename_side:
+        cam_inputs[-1] = 'Side'
     cam_str = ''.join([c[0].lower() for c in cam_inputs])
     if weights_file_addon:
         weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
@@ -83,6 +86,8 @@ if __name__ == '__main__':
     # Create dataset object
     print("Initializing dataset object...")
     # Create dataset objects
+    if rename_side:
+        cam_inputs[-1] = 'center_rmBackground'
     if grayscale:
         transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
                                  torchvision.transforms.Grayscale(),
