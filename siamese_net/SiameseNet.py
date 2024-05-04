@@ -428,6 +428,7 @@ def train_model(configs, model, dataloaders, device, criterion, optimizer, sched
 
         # Convert error quaternion to Euler
         rot_euler_error = utils.quaternion2euler(rot_q_diff)
+        rot_euler_error = np.sqrt(np.square(rot_euler_error)) 
         rot_euler_avg_err = pd.DataFrame(np.mean(rot_euler_error, axis=0), index=['Rx_err', 'Ry_err', 'Rz_err'],
                                          columns=['Rot_err'])
         print(f'Average orientation error:\n{rot_euler_avg_err}')

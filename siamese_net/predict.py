@@ -173,7 +173,10 @@ if __name__ == '__main__':
         # Save preds as csv
         print(f"Saving results in {pred_file}...")
         preds_df.to_csv(pred_file)
-        print(preds_df.head(5))
+        # print(preds_df.head(5))
+
+        # Reset pred df to kepp only predictions
+        preds = preds_df[preds_df.columns.intersection(annotations_test.columns[:7])]
 
     # Get Pearson product-moment correlation coefficients
     pcc_per_axis = utils_data.get_pcc_per_axis(annotations_test, preds)
@@ -205,8 +208,8 @@ if __name__ == '__main__':
         ax1.plot(frame_id, preds_pos, label=['pred_x', 'pred_y', 'pred_z'], linestyle='--')
         ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         ax1.set_ylabel('Displacement [mm]')
-        ax2.plot(frame_id, annos_ori, label=['gt_x', 'gt_y', 'gt_z'], linestyle='-')
-        ax2.plot(frame_id, preds_ori, label=['pred_x', 'pred_y', 'pred_z'], linestyle='--')
+        ax2.plot(frame_id, annos_ori, label=['gt_Rx', 'gt_Ry', 'gt_Rz'], linestyle='-')
+        ax2.plot(frame_id, preds_ori, label=['pred_Rx', 'pred_Ry', 'pred_Rz'], linestyle='--')
         ax2.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         ax2.set_xlabel('Frame number')
         ax2.set_ylabel('Rotation [°]')

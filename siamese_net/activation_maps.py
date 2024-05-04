@@ -78,6 +78,7 @@ if __name__ == '__main__':
     annotations_train = utils_data.merge_annotations(dataset_root, anno_paths_train)
     annotations_valid = utils_data.merge_annotations(dataset_root, anno_paths_valid)
     annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
+    annotations_test = annotations_test.iloc[110:, :]
 
     # Filter to view activations on high error images
     # annotations_test = utils_data.filter_imgs_per_position(annotations_test,
