@@ -67,5 +67,6 @@ merge_trajectories:
     - traj_slice_z80_sec3.csv
   merged_file_name: traj_slice_y_z_red_rot
   filter_rot: True
+  filter_oof: True
   test_ratio: 0.2
   valid_ratio: 0.25

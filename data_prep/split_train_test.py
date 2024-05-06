@@ -144,11 +144,18 @@ if __name__ == '__main__':
     anno_files = configs['merge_trajectories']['traj_to_merge']
     new_file_name_base = configs['merge_trajectories']['merged_file_name']
     reduce_rot = configs['merge_trajectories']['filter_rot']
+    filter_oof = configs['merge_trajectories']['filter_oof']
     test_ratio = configs['merge_trajectories']['test_ratio']
     valid_ratio = configs['merge_trajectories']['valid_ratio']
     
     # Merge all annotation files together
     annotations = utils_data.merge_annotations(dataset_root, anno_files)
+
+    # Filter out images where the mandible isn't fully visible
+    if filter_oof:
+        print('Filtering images to remove frames where the mandible is out of frame...')
+        annotations, removed_imgs = utils_data.filter_out_oof_mandible(dataset_root, annotations, 80)
+        print(f'Removed {len(removed_imgs)} images')
 
     # Filter data
     if reduce_rot:

@@ -12,5 +12,6 @@ merge_trajectories:
     - traj_random_srt.csv
   merged_file_name: traj_merged_red_rot
   filter_rot: True
+  filter_oof: True
   test_ratio: 0.2
   valid_ratio: 0.25
