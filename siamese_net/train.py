@@ -73,6 +73,7 @@ if __name__ == '__main__':
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]]
         # min_max_pos = [[299, 229, 279], [401, 311, 341]]
         min_max_pos = utils_data.get_dataset_min_max_pos(configs)
+        print(f'min_max_pos: {min_max_pos}')
     else:
         min_max_pos = None
 

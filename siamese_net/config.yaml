@@ -1,14 +1,14 @@
 data:
   dataset_root: /data/Boudreault/mandible_data
   trajectories_train:
-    - traj_slice_y_red_rot_train.csv
-    - traj_slice_z_red_rot_train.csv
+    - traj_slice_y_no_oof_train.csv
+    - traj_slice_z_no_oof_train.csv
   trajectories_valid:
-    - traj_slice_y_red_rot_valid.csv
-    - traj_slice_z_red_rot_valid.csv
+    - traj_slice_y_no_oof_valid.csv
+    - traj_slice_z_no_oof_valid.csv
   trajectories_test:
-    - traj_slice_y_red_rot_test.csv
-    - traj_slice_z_red_rot_test.csv
+    - traj_slice_y_no_oof_test.csv
+    - traj_slice_z_no_oof_test.csv
     # - traj_random6.csv
     # - traj_random7.csv
     # - traj_random8.csv
@@ -26,7 +26,7 @@ data:
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: "grayscale"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  weights_file_addon: "grayscale_no_oof"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: False
   cam_inputs:
     - Left
@@ -37,7 +37,7 @@ training:
   valid_bs: 4
   test_bs: 2
   max_epochs: 30
-  patience: 3
+  patience: 2
   lr: 0.01
   lr_scheduler:
     step_size: 3

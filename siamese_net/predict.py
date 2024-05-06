@@ -63,8 +63,10 @@ if __name__ == '__main__':
         # Set min and max XYZ position values: [[xmin, ymin, zmin], [xmax, ymax, zmax]
         # min_max_pos = [[299, 229, 279], [401, 311, 341]]
         # min_max_pos = [[254, 203, 234], [472, 335, 362]]    # Min and max values for all trajectories
-        min_max_pos = [[290, 235, 275], [410, 305, 345]]  # Min and max values for all trajectories
+        # min_max_pos = [[290, 235, 275], [410, 305, 345]]  # Min and max values for all trajectories
+        min_max_pos = [[284.0, 234.0, 269.0], [406.0, 326.0, 351.0]]
         # min_max_pos = utils_data.get_dataset_min_max_pos(configs)
+        print(f'min_max_pos: {min_max_pos}')
     else:
         min_max_pos = None
 
@@ -76,7 +78,7 @@ if __name__ == '__main__':
     print("Loading annotation files...")
     annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
     # Filter images
-    # annotations = utils_data.filter_imgs_per_position(annotations, [[290, 390], [235, 305], [275, 345]], None)
+    annotations_test = utils_data.filter_imgs_per_position(annotations_test, [[310, 406], [245, 326], []], None)
     annotations_test = utils_data.filter_imgs_per_rotation_euler(annotations_test, None)
 
     # Get pred file name
