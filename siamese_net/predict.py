@@ -83,6 +83,8 @@ if __name__ == '__main__':
     # Set file name
     if any('occ' in img for img in annotations_test.index.values):
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}_occ.csv")
+    elif any('slice' in img for img in annotations_test.index.values): 
+        pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}_test.csv")
     else:
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}.csv")
 

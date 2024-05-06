@@ -1,4 +1,5 @@
 # Taken from: https://gist.github.com/wangg12/f11258583ffcc4728eb71adc0f38e832#file-viz_net_pytorch-py
+import argparse
 import pathlib
 import numpy as np
 import matplotlib.pyplot as plt
@@ -25,7 +26,20 @@ def kernel_vis(tensor, ch=0, allkernels=False, nrow=8, padding=1):
 
 
 if __name__ == "__main__":
-    config_file = pathlib.Path("config_windows.yaml")
+    # Set up the argument parser
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config_path',
+                        help='Path to the config file',
+                        type=str)
+
+    args = parser.parse_args()
+    config_file = pathlib.Path(args.config_path)
+    # config_file = pathlib.Path("siamese_net/config.yaml")
+
+    if not config_file.exists():
+        print(f'Config file not found at {args.config_path}')
+        raise SystemExit(1)
+    
     configs = utils.load_configs(config_file)
     subnet_name = configs['training']['sub_model']
     cam_inputs = configs['training']['cam_inputs']
@@ -40,7 +54,7 @@ if __name__ == "__main__":
 
     # Define the model
     model = SiameseNetwork(configs)
-    model.load_state_dict(torch.load(f"model_weights/{weights_file}.pth"))
+    model.load_state_dict(torch.load(f"siamese_net/model_weights/{weights_file}.pth"))
 
     # Get first conv layer weights
     subnet_layers = model.subnet
@@ -52,7 +66,7 @@ if __name__ == "__main__":
     plt.imshow(first_feature_grid)
     plt.axis('off')
     plt.ioff()
-    plt.title(f'Kernel values of the first {model.subnet_name} conv layer')
+    plt.title(f'Kernel values of the first {model.subnet_name} conv layer using {len(cam_inputs)} cameras')
     plt.show(block=True)
 
     # Compare those values to the default ResNet-18 values

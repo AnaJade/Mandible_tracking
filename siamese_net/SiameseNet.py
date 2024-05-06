@@ -547,17 +547,21 @@ def get_feature_maps(model: SiameseNetwork, device, dataloader, cam_inputs):
             heatmaps = [np.maximum(np.mean(heatmap, axis=0), 0) / np.max(heatmap) for heatmap in outputs]
             plt.figure(figsize=(3 * len(heatmap_imgs), 7))
             img_name = dataloader.dataset.img_names[i]
+            if len(cam_inputs) == 2:
+                shift = [1, 3, 5]
+            else:
+                shift = [1, 4, 7]
             for j, (heatmap_img, heatmap, img, cam) in enumerate(zip(heatmap_imgs, heatmaps, images, cam_inputs)):
-                plt.subplot(3, len(heatmap_imgs), j + 1)
+                plt.subplot(3, len(heatmap_imgs), j + shift[0])
                 plt.title(cam)
                 plt.imshow(heatmap_img)
                 plt.axis('off')
-                plt.subplot(3, len(heatmap_imgs), j + 4)
+                plt.subplot(3, len(heatmap_imgs), j + shift[1])
                 if j == 0:
                     plt.title('Subnet outputs:', loc='left')
                 plt.imshow(heatmap)
                 # plt.axis('off')
-                plt.subplot(3, len(heatmap_imgs), j + 7)
+                plt.subplot(3, len(heatmap_imgs), j + shift[2])
                 if j == 0:
                     plt.title('Input images:', loc='left')
                 plt.imshow(img)
