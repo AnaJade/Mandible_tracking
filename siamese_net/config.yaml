@@ -3,12 +3,15 @@ data:
   trajectories_train:
     - traj_slice_y_no_oof_train.csv
     - traj_slice_z_no_oof_train.csv
+    - traj_slice_y_occ_train.csv
   trajectories_valid:
     - traj_slice_y_no_oof_valid.csv
     - traj_slice_z_no_oof_valid.csv
+    - traj_slice_y_occ_valid.csv
   trajectories_test:
     - traj_slice_y_no_oof_test.csv
     - traj_slice_z_no_oof_test.csv
+    - traj_slice_y_occ_test.csv
     # - traj_random6.csv
     # - traj_random7.csv
     # - traj_random8.csv
@@ -26,8 +29,9 @@ data:
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: "grayscale_no_oof"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
-  use_pretrained: False
+  weights_file_addon: "grayscale_occ"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  use_pretrained: True
+  pre_trained_weights: "resnet18_lrscams_256_grayscale_no_oof"
   cam_inputs:
     - Left
     - Right

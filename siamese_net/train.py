@@ -45,6 +45,8 @@ if __name__ == '__main__':
 
     subnet_name = configs['training']['sub_model']
     weights_file_addon = configs['training']['weights_file_addon']
+    use_pretrained = configs['training']['use_pretrained']
+    pre_trained_weights = configs['training']['pre_trained_weights']
     cam_inputs = configs['training']['cam_inputs']
     train_bs = configs['training']['train_bs']
     valid_bs = configs['training']['valid_bs']
@@ -113,6 +115,9 @@ if __name__ == '__main__':
 
     # Define the model
     model = SiameseNetwork(configs)
+    if use_pretrained and pre_trained_weights != '':
+        print(f'Initial weight values set to {pre_trained_weights}.pth')
+        model.load_state_dict(torch.load(f"siamese_net/model_weights/{pre_trained_weights}.pth"))
     model.to(device)
     params = [p for p in model.parameters() if p.requires_grad]
 

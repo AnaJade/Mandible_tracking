@@ -156,7 +156,7 @@ if __name__ == '__main__':
         print('Filtering images to remove frames where the mandible is out of frame...')
         # annotations, removed_imgs = utils_data.filter_out_oof_mandible(dataset_root, annotations, 80)
         annotations, removed_imgs = utils_data.filter_out_oof_mandible_by_pixel_match(dataset_root, annotations,
-                                                                                      [199, 134, 98], 10)
+                                                                                      [180, 121, 81], 10)
         print(f'Removed {len(removed_imgs)} images')
 
     # Filter data
