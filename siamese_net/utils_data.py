@@ -300,10 +300,50 @@ def get_loss_per_axis(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
 
     rmse_per_dim = {}
     for i, dim in enumerate(dims):
-        rmse_per_dim[dim] = mean_squared_error(targets[:, i], preds[:, i], squared=False)
+        # Element wise RMSE
+        img_rmse = np.sqrt(np.power(targets[:, i] - preds[:, i], 2))
+        rmse_per_dim[dim] = {'RMSE': mean_squared_error(targets[:, i], preds[:, i], squared=False),
+                             'RMSE_min': np.min(img_rmse),
+                             'RMSE_max': np.max(img_rmse),
+                             'RMSE_median': np.median(img_rmse),
+                             'RMSE_range': (np.max(img_rmse) - np.min(img_rmse))/2}
 
-    rmse_per_dim = pd.DataFrame.from_dict(rmse_per_dim, orient='index', columns=['RMSE'])
+    rmse_per_dim = pd.DataFrame.from_dict(rmse_per_dim, orient='index')
+    pos_mean = rmse_per_dim.loc[['x', 'y', 'z'], :].mean()
+    rmse_per_dim = pd.concat([rmse_per_dim, pos_mean.to_frame(name='pos_mean').T])
     return rmse_per_dim
+
+
+def get_mae_per_axis(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
+    """
+    Get the MAE for each dimension
+    :param targets: [_, 6 or 7] array with the target values
+    :param preds: [_, 6 or 7] array with the model predictions
+    :return: pandas df with the RMSE per dimension
+    """
+    # Return a pandas df with the MAE in X, Y, Z, rx, r, rz
+    assert preds.shape[-1] == targets.shape[-1]
+    if preds.shape[-1] == 6:
+        dims = ['x', 'y', 'z', 'rx', 'ry', 'rz']
+    elif preds.shape[-1] == 7:
+        dims = ['x', 'y', 'z', 'q1', 'q2', 'q3', 'q4']
+    else:
+        dims = []
+
+    mae_per_dim = {}
+    for i, dim in enumerate(dims):
+        # Element wise MAE
+        img_mae = np.abs(targets[:, i] - preds[:, i])
+        mae_per_dim[dim] = {'MAE': np.mean(img_mae),
+                             'MAE_min': np.min(img_mae),
+                             'MAE_max': np.max(img_mae),
+                             'MAE_median': np.median(img_mae),
+                             'MAE_range': (np.max(img_mae) - np.min(img_mae))/2}
+
+    mae_per_dim = pd.DataFrame.from_dict(mae_per_dim, orient='index')
+    pos_mean = mae_per_dim.loc[['x', 'y', 'z'], :].mean()
+    mae_per_dim = pd.concat([mae_per_dim, pos_mean.to_frame(name='pos_mean').T])
+    return mae_per_dim
 
 
 def get_loss_per_img(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
@@ -336,10 +376,15 @@ def get_pcc_per_axis(annotations: pd.DataFrame, preds: pd.DataFrame, angle='Eule
     if angle == 'Euler':
         annotations = get_euler_annotations([annotations])[0]
         preds = get_euler_annotations([preds])[0]
+        rot_ax = ['Rx', 'Ry', 'Rz']
+    else:
+        rot_ax = [f'q{i}' for i in range(4)]
 
     pcc_per_axis = {}
     for ax in annotations.columns:
         pcc_per_axis[ax] = np.corrcoef(annotations[ax].to_numpy(), preds[ax].to_numpy(), rowvar=False)[0, 1]
+    pcc_per_axis['pos_mean'] = np.mean([pcc_per_axis[ax] for ax in ['x', 'y', 'z']])
+    pcc_per_axis['ori_mean'] = np.mean([pcc_per_axis[ax] for ax in rot_ax])
     pcc_per_axis = pd.DataFrame.from_dict(pcc_per_axis, orient='index', columns=['PCC'])
     return pcc_per_axis
 

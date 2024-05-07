@@ -134,6 +134,9 @@ if __name__ == '__main__':
     rmse_per_dim = utils_data.get_loss_per_axis(annotations_test.to_numpy(), preds.to_numpy())
     print(f'RMSE per dimension: \n{rmse_per_dim}')
 
+    mae_per_dim = utils_data.get_mae_per_axis(annotations_test.to_numpy(), preds.to_numpy())
+    print(f'MAE per dimension: \n{mae_per_dim}')
+
     # Calculate the loss on the normalized data
     """
     norm_annotations = utils_data.normalize_position(torch.Tensor(annotations_test.to_numpy()),
@@ -150,8 +153,14 @@ if __name__ == '__main__':
     # Convert error quaternion to Euler
     rot_euler_error = utils.quaternion2euler(rot_q_diff)
     rot_euler_error = np.sqrt(np.square(rot_euler_error))   # 'RMSE' on the euler eurer
-    rot_euler_avg_err = pd.DataFrame(np.mean(rot_euler_error, axis=0), index=['Rx_err', 'Ry_err', 'Rz_err'],
-                                     columns=['Rot_err'])
+    rot_euler_avg_err = np.vstack([np.mean(rot_euler_error, axis=0), np.min(rot_euler_error, axis=0),
+                                   np.max(rot_euler_error, axis=0), np.median(rot_euler_error, axis=0),
+                                   (np.max(rot_euler_error, axis=0)-np.min(rot_euler_error, axis=0))/2])
+    rot_euler_avg_err = pd.DataFrame(rot_euler_avg_err.T, index=['Rx_err', 'Ry_err', 'Rz_err'],
+                                     columns=['Rot_err', 'Rot_err_min', 'Rot_err_max', 'Rot_err_median',
+                                              'Rot_err_range'])
+    rot_mean = rot_euler_avg_err.mean()
+    rot_euler_avg_err = pd.concat([rot_euler_avg_err, rot_mean.to_frame(name='rot_mean').T])
     print(f'Average orientation error:\n{rot_euler_avg_err}')
 
     if not pred_file.exists():
