@@ -429,7 +429,7 @@ def filter_out_oof_mandible(dataset_root: pathlib.Path, annotations: pd.DataFram
 
 
 def filter_out_oof_mandible_by_pixel_match(dataset_root: pathlib.Path, annotations: pd.DataFrame,
-                                           mandible_colour=[199, 134, 98], pixel_range=10) -> [pd.DataFrame, list]:
+                                           mandible_colour=[180, 121, 81], pixel_range=10) -> [pd.DataFrame, list]:
     """
     Filter out images where the mandible goes out of frame based on matching mandible pixel values
     Loads the two front images, and checks the border
@@ -446,10 +446,11 @@ def filter_out_oof_mandible_by_pixel_match(dataset_root: pathlib.Path, annotatio
         # Load images
         imgs = [read_image(img_path.__str__()).numpy().transpose((1, 2, 0)) for img_path in img_paths]
         # Crop images to test
-        imgs = [img[750:875, 750:1200, :] for img in imgs]
-        plt.imshow(imgs[0])
-        mean_pixel_vals = np.mean(np.mean(imgs[0], axis=0), axis=0)
-        print(f'Mean mandible pixel values: {mean_pixel_vals}')
+        # imgs = [img[925:1050, 1200:1800, :] for img in imgs]
+        # plt.imshow(imgs[0])
+        # plt.show(block=True)
+        # mean_pixel_vals = np.mean(np.mean(imgs[0], axis=0), axis=0)
+        # print(f'Mean mandible pixel values: {mean_pixel_vals}')
         # Keep only border values (10 pixel border around the image)
         borders = [np.concatenate([np.concatenate([img[:20, :, :],
                                                    img[-20:, :, :]], axis=0).reshape((-1, 3)),

@@ -33,6 +33,7 @@ class SiameseNetwork(nn.Module):
         self.input_shape = input_shape
         self.subnet_name = configs['training']['sub_model']
         self.use_pretrained = configs['training']['use_pretrained']
+        self.pre_trained_weights = configs['training']['pre_trained_weights']
         self.cam_inputs = configs['training']['cam_inputs']
         self.num_subnets = len(self.cam_inputs)
         self.nb_hidden = configs['training']['num_fc_hidden_units']
@@ -68,7 +69,7 @@ class SiameseNetwork(nn.Module):
 
     def resnet18_init(self):
         # get resnet model
-        if self.use_pretrained:
+        if self.use_pretrained and self.pre_trained_weights == '':
             self.subnet = torchvision.models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
         else:
             self.subnet = torchvision.models.resnet18(weights=None)
@@ -90,7 +91,7 @@ class SiameseNetwork(nn.Module):
         # Check if the version of efficientnet is valid
         if self.subnet_name in [f'efficientnet-b{v}' for v in range(8)]:
             # Init the entire EfficientNet model
-            if self.use_pretrained:
+            if self.use_pretrained and self.pre_trained_weights == '':
                 self.subnet = EfficientNet.from_pretrained(self.subnet_name)
             else:
                 self.subnet = EfficientNet.from_name(self.subnet_name)
@@ -752,6 +753,7 @@ def wandb_init(configs: dict):
             "subnet": configs['training']['sub_model'],
             "weights_file_addon": configs['training']['weights_file_addon'],
             "use_pretrained": configs['training']['use_pretrained'],
+            "pre_trained_weights": configs['training']['pre_trained_weights'],
             "cam_inputs": configs['training']['cam_inputs'],
             "num_units_fc": configs['training']['num_fc_hidden_units'],
             "batch_size_train": configs['training']['train_bs'],
