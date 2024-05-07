@@ -391,8 +391,10 @@ def get_pcc_per_axis(annotations: pd.DataFrame, preds: pd.DataFrame, angle='Eule
 
 def filter_out_oof_mandible(dataset_root: pathlib.Path, annotations: pd.DataFrame, max_diff=80) -> [pd.DataFrame, list]:
     """
-    Filter out images where the mandible goes out of frame
+    Filter out images where the mandible goes out of frame based on the difference between the largest and smallest
+    pixel value
     Loads the two front images, and checks the border
+    :param dataset_root: path to the root of the dataset
     :param annotations: annotations df with all trajectories
     :param max_diff: maximum pixel RGB value difference to still be considered as part of the background
     :return: filtered annotation df
@@ -412,6 +414,51 @@ def filter_out_oof_mandible(dataset_root: pathlib.Path, annotations: pd.DataFram
                    for img in imgs]
         # Check boarder values
         border_check = [np.any((np.max(b, axis=2) - np.min(b, axis=2)) > max_diff) for img in borders for b in img]
+        # Get max diff value (for testing)
+        # border_check_max = [np.max((np.max(b, axis=2) - np.min(b, axis=2))) for img in borders for b in img]
+
+        if any(border_check):
+            removed_imgs.append(img_set)
+
+    # Filter og dataframe
+    annotations = annotations.drop(index=removed_imgs)
+
+    return annotations, removed_imgs
+
+
+def filter_out_oof_mandible_by_pixel_match(dataset_root: pathlib.Path, annotations: pd.DataFrame,
+                                           mandible_colour=[199, 134, 98], pixel_range=10) -> [pd.DataFrame, list]:
+    """
+    Filter out images where the mandible goes out of frame based on matching mandible pixel values
+    Loads the two front images, and checks the border
+    :param annotations: annotations df with all trajectories
+    :param mandible_colour: maximum pixel RGB value difference to still be considered as part of the background
+    :param pixel_range: Range of values th be
+    :return: filtered annotation df
+    """
+    cameras = {'Left': 'l', 'Right': 'r'}
+    removed_imgs = []
+    for img_set in tqdm(annotations.index.values.tolist()):
+        # Build full image paths
+        img_paths = [dataset_root.joinpath(f'{cam}/{img_set}_{cameras[cam]}.jpg') for cam in ['Left', 'Right']]
+        # Load images
+        imgs = [read_image(img_path.__str__()).numpy().transpose((1, 2, 0)) for img_path in img_paths]
+        # Crop images to test
+        imgs = [img[750:875, 750:1200, :] for img in imgs]
+        plt.imshow(imgs[0])
+        mean_pixel_vals = np.mean(np.mean(imgs[0], axis=0), axis=0)
+        print(f'Mean mandible pixel values: {mean_pixel_vals}')
+        # Keep only border values (10 pixel border around the image)
+        borders = [np.concatenate([np.concatenate([img[:20, :, :],
+                                                   img[-20:, :, :]], axis=0).reshape((-1, 3)),
+                                   np.concatenate([img[:, :20, :],
+                                                   img[:, -20:, :]], axis=1).reshape((-1, 3))], axis=0)
+                   for img in imgs]
+        # Check boarder values
+        border_check = [np.any(np.all(np.stack([(b[:, c] < mandible_colour[c]+pixel_range) &
+                                                (b[:, c] > mandible_colour[c]-pixel_range)
+                                                for c in range(len(mandible_colour))], axis=1), axis=1))
+                        for b in borders]
         # Get max diff value (for testing)
         # border_check_max = [np.max((np.max(b, axis=2) - np.min(b, axis=2))) for img in borders for b in img]
 
