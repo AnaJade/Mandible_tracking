@@ -19,6 +19,8 @@ import utils_data
 from utils_data import MandibleDataset, NormTransform
 from SiameseNet import SiameseNetwork, get_preds
 
+pd.set_option('display.max_columns', None)
+
 
 if __name__ == '__main__':
     # Set up the argument parser
@@ -152,16 +154,30 @@ if __name__ == '__main__':
 
     # Convert error quaternion to Euler
     rot_euler_error = utils.quaternion2euler(rot_q_diff)
-    rot_euler_error = np.sqrt(np.square(rot_euler_error))   # 'RMSE' on the euler eurer
-    rot_euler_avg_err = np.vstack([np.mean(rot_euler_error, axis=0), np.min(rot_euler_error, axis=0),
-                                   np.max(rot_euler_error, axis=0), np.median(rot_euler_error, axis=0),
-                                   (np.max(rot_euler_error, axis=0)-np.min(rot_euler_error, axis=0))/2])
-    rot_euler_avg_err = pd.DataFrame(rot_euler_avg_err.T, index=['Rx_err', 'Ry_err', 'Rz_err'],
-                                     columns=['Rot_err', 'Rot_err_min', 'Rot_err_max', 'Rot_err_median',
-                                              'Rot_err_range'])
-    rot_mean = rot_euler_avg_err.mean()
-    rot_euler_avg_err = pd.concat([rot_euler_avg_err, rot_mean.to_frame(name='rot_mean').T])
+    rot_euler_error_rmse = np.sqrt(np.square(rot_euler_error))   # 'RMSE' on the euler eurer
+    rot_euler_error_rmse = np.vstack([np.mean(rot_euler_error_rmse, axis=0), np.min(rot_euler_error_rmse, axis=0),
+                                      np.max(rot_euler_error_rmse, axis=0), np.median(rot_euler_error_rmse, axis=0),
+                                      (np.max(rot_euler_error_rmse, axis=0)-np.min(rot_euler_error_rmse, axis=0))/2,
+                                      np.std(rot_euler_error_rmse, axis=0)])
+    rot_euler_error_rmse = pd.DataFrame(rot_euler_error_rmse.T, index=['Rx_err', 'Ry_err', 'Rz_err'],
+                                        columns=['Rot_err', 'Rot_err_min', 'Rot_err_max', 'Rot_err_median',
+                                                 'Rot_err_range', 'Rot_err_std'])
+    rot_mean = rot_euler_error_rmse.mean()
+    rot_euler_avg_err = pd.concat([rot_euler_error_rmse, rot_mean.to_frame(name='rot_mean').T])
     print(f'Average orientation error:\n{rot_euler_avg_err}')
+
+    # Rot error MAE
+    rot_euler_error_mae = np.abs(rot_euler_error)
+    rot_euler_error_mae = np.vstack([np.mean(rot_euler_error_mae, axis=0), np.min(rot_euler_error_mae, axis=0),
+                                     np.max(rot_euler_error_mae, axis=0), np.median(rot_euler_error_mae, axis=0),
+                                     (np.max(rot_euler_error_mae, axis=0) - np.min(rot_euler_error_mae, axis=0)) / 2,
+                                     np.std(rot_euler_error_mae, axis=0)])
+    rot_euler_error_mae = pd.DataFrame(rot_euler_error_mae.T, index=['Rx_err', 'Ry_err', 'Rz_err'],
+                                       columns=['Rot_MAE', 'Rot_MAE_min', 'Rot_MAE_max', 'Rot_MAE_median',
+                                                'Rot_MAE_range', 'Rot_MAE_std'])
+    rot_mean = rot_euler_error_mae.mean()
+    rot_euler_error_mae = pd.concat([rot_euler_error_mae, rot_mean.to_frame(name='rot_mean').T])
+    print(f'Average orientation MAE:\n{rot_euler_error_mae}')
 
     if not pred_file.exists():
         # Format to pandas df

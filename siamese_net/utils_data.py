@@ -306,7 +306,8 @@ def get_loss_per_axis(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
                              'RMSE_min': np.min(img_rmse),
                              'RMSE_max': np.max(img_rmse),
                              'RMSE_median': np.median(img_rmse),
-                             'RMSE_range': (np.max(img_rmse) - np.min(img_rmse))/2}
+                             'RMSE_range': (np.max(img_rmse) - np.min(img_rmse))/2,
+                             'RMSE_std': np.std(img_rmse)}
 
     rmse_per_dim = pd.DataFrame.from_dict(rmse_per_dim, orient='index')
     pos_mean = rmse_per_dim.loc[['x', 'y', 'z'], :].mean()
@@ -335,10 +336,11 @@ def get_mae_per_axis(targets: np.ndarray, preds: np.ndarray) -> pd.DataFrame:
         # Element wise MAE
         img_mae = np.abs(targets[:, i] - preds[:, i])
         mae_per_dim[dim] = {'MAE': np.mean(img_mae),
-                             'MAE_min': np.min(img_mae),
-                             'MAE_max': np.max(img_mae),
-                             'MAE_median': np.median(img_mae),
-                             'MAE_range': (np.max(img_mae) - np.min(img_mae))/2}
+                            'MAE_min': np.min(img_mae),
+                            'MAE_max': np.max(img_mae),
+                            'MAE_median': np.median(img_mae),
+                            'MAE_range': (np.max(img_mae) - np.min(img_mae))/2,
+                            'MAE_std': np.std(img_mae)}
 
     mae_per_dim = pd.DataFrame.from_dict(mae_per_dim, orient='index')
     pos_mean = mae_per_dim.loc[['x', 'y', 'z'], :].mean()

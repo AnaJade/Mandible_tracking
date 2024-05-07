@@ -15,11 +15,14 @@ data:
     # - traj_random_srt.csv
     # - traj_random4.csv
     # - traj_splitYXZ_s20.csv
-    - traj_random6.csv
-    - traj_random7.csv
-    - traj_random8.csv
-    - traj_random9.csv
-    - traj_random10.csv
+    - traj_slice_y_no_oof_test.csv
+    - traj_slice_z_no_oof_test.csv
+    # - traj_slice_y_occ_test.csv
+    # - traj_random6.csv
+    # - traj_random7.csv
+    # - traj_random8.csv
+    # - traj_random9.csv
+    # - traj_random10.csv
     # - traj_random6_occ.csv
     # - traj_random7_occ.csv
     # - traj_random8_occ.csv
@@ -34,6 +37,7 @@ training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
   weights_file_addon: 'grayscale_no_oof' # 'no_bgnd' # "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: True
+  pre_trained_weights: ""
   cam_inputs:
     - Left
     - Right

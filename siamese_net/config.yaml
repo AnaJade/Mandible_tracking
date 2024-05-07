@@ -26,7 +26,7 @@ data:
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: "grayscale_no_oof"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  weights_file_addon: "grayscale_train_occ"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: False
   cam_inputs:
     - Left
