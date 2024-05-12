@@ -1,5 +1,6 @@
 import argparse
 import pathlib
+import platform
 
 import cv2
 import torch
@@ -43,8 +44,6 @@ if __name__ == '__main__':
     anno_paths_test = configs['data']['trajectories_test']
     resize_img_h = configs['data']['resize_img']['img_h']
     resize_img_w = configs['data']['resize_img']['img_w']
-    change_bgnd_train = configs['data']['change_bgnd_train']
-    change_bgnd_pred = configs['data']['change_bgnd_pred']
     grayscale = configs['data']['grayscale']
     rescale_pos = configs['data']['rescale_pos']
 
@@ -84,15 +83,6 @@ if __name__ == '__main__':
     else:
         min_max_pos = None
 
-    if change_bgnd_train | change_bgnd_pred:
-        bgnd_img = read_image(dataset_root.joinpath(f'chair_background.jpg').__str__()).numpy().transpose((1, 2, 0))
-        bgnd_img = cv2.resize(bgnd_img, dsize=(1920, 1200), interpolation=cv2.INTER_CUBIC)
-        bgnd_img_train = bgnd_img if change_bgnd_train else None
-        bgnd_img_test = bgnd_img if change_bgnd_pred else None
-    else:
-        bgnd_img_train = None
-        bgnd_img_test = None
-
     # Set training device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     print(f'Training done on {device}')
@@ -115,17 +105,19 @@ if __name__ == '__main__':
     else:
         transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
                                  NormTransform()])
-    dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, min_max_pos, transforms, bgnd_img_train)
-    dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, min_max_pos, transforms, bgnd_img_train)
-    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms, bgnd_img_test)
+    dataset_train = MandibleDataset(dataset_root, cam_inputs, annotations_train, min_max_pos, transforms)
+    dataset_valid = MandibleDataset(dataset_root, cam_inputs, annotations_valid, min_max_pos, transforms)
+    dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
 
     print("Creating dataloader...")
-    # dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=True, num_workers=4)
-    # dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=4)
-    # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
-    dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=False, num_workers=0)
-    dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=0)
-    dataloader_test = DataLoader(dataset_valid, batch_size=test_bs, shuffle=False, num_workers=0)
+    if platform.system() == 'Windows':
+        dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=False, num_workers=0)
+        dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=0)
+        dataloader_test = DataLoader(dataset_valid, batch_size=test_bs, shuffle=False, num_workers=0)
+    else:
+        dataloader_train = DataLoader(dataset_train, batch_size=train_bs, shuffle=True, num_workers=4)
+        dataloader_valid = DataLoader(dataset_valid, batch_size=valid_bs, shuffle=False, num_workers=4)
+        dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
 
     # Define the model
     model = SiameseNetwork(configs)

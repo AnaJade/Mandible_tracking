@@ -45,8 +45,6 @@ if __name__ == '__main__':
     anno_paths_test = configs['data']['trajectories_test']
     resize_img_h = configs['data']['resize_img']['img_h']
     resize_img_w = configs['data']['resize_img']['img_w']
-    change_bgnd_train = configs['data']['change_bgnd_train']
-    change_bgnd_pred = configs['data']['change_bgnd_pred']
     grayscale = configs['data']['grayscale']
     rescale_pos = configs['data']['rescale_pos']
 
@@ -56,6 +54,7 @@ if __name__ == '__main__':
     test_bs = configs['training']['test_bs']
     weights_file_addon = configs['training']['weights_file_addon']
     rename_side = True if 'center_rmBackground' in cam_inputs else False
+    real_bgnd = True if any('real_bgnd' in c for c in cam_inputs) else False
 
     if rename_side:
         cam_inputs[-1] = 'Side'
@@ -101,12 +100,8 @@ if __name__ == '__main__':
     else:
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}.csv")
 
-    if change_bgnd_pred:
+    if real_bgnd:
         pred_file = pathlib.Path(str(pred_file).replace(pred_file.stem, f'{pred_file.stem}_real_bgnd'))
-        bgnd_img = read_image(dataset_root.joinpath(f'chair_background.jpg').__str__()).numpy().transpose((1, 2, 0))
-        bgnd_img = cv2.resize(bgnd_img, dsize=(1920, 1200), interpolation=cv2.INTER_CUBIC)
-    else:
-        bgnd_img = None
 
     if pred_file.exists():
         print(f'Loading preds from {pred_file}')
@@ -126,7 +121,7 @@ if __name__ == '__main__':
         else:
             transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
                                      NormTransform()])
-        dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms, bgnd_img)
+        dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
         # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
         # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
         dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)

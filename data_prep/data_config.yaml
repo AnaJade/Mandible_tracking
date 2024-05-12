@@ -38,3 +38,10 @@ merge_trajectories:
   filter_oof: True
   test_ratio: 0.2
   valid_ratio: 0.25
+add_real_bgnd:
+  bgnd_img_paths:
+    - chair_background.jpg
+  trajectory_annotations:
+    - traj_slice_y_no_oof_test.csv
+    - traj_slice_z_no_oof_test.csv
+    - traj_slice_y_occ_test.csv

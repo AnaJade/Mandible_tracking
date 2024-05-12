@@ -1,5 +1,6 @@
 import pathlib
 import warnings
+import platform
 
 import cv2
 import matplotlib
@@ -24,7 +25,7 @@ import utils
 
 class MandibleDataset(Dataset):
     def __init__(self, root: pathlib.Path, cam_inputs: list, img_labels: pd.DataFrame, min_max_pos=None,
-                 transforms=None, bgnd_img=None):
+                 transforms=None):
         """
         Dataset object used to pass images to a siamese network
         :param root: dataset root path
@@ -32,16 +33,15 @@ class MandibleDataset(Dataset):
         :param img_labels: annotations for the images
         :param min_max_pos: min and max position values. If None, no rescaling will be done
         :param transforms: transforms that will be applied to each image before being used as input by the model
-        :param bgnd_img: Background image as RGB np array [img_w, img_h, c]
         """
         self.root = root
         self.img_labels = img_labels
         self.min_max_pos = min_max_pos
         self.transforms = transforms
-        self.bgnd_img = bgnd_img
         self.img_names = img_labels.index.values.tolist()
         self.cam_inputs = cam_inputs
-        self.cameras = {'Left': 'l', 'Right': 'r', 'Side': 's', 'center_rmBackground': 's'}
+        self.cameras = {'Left': 'l', 'Right': 'r', 'Side': 's', 'center_rmBackground': 's',
+                        'Left_real_bgnd': 'l', 'Right_real_bgnd': 'r', 'Side_real_bgnd': 's'}
 
         self.pos_min = None
         self.pos_max = None
@@ -61,26 +61,6 @@ class MandibleDataset(Dataset):
         # Read images
         try:
             images = [read_image(img_path.__str__()) for img_path in img_paths]
-            if self.bgnd_img is not None:
-                # Reformat images images
-                imgs = [img.numpy().transpose((1, 2, 0)) for img in images]
-                # Crop out mandible
-                mandible_colour = [199, 134, 98]    # Pixel range on old data (Windows)
-                # mandible_colour = [180, 121, 81]    # Pixel range on new data (Ubuntu)
-                mandible_crops = crop_mandible_by_pixel_match(imgs, mandible_colour, 30)
-                # Overlay imgs
-                # real_imgs = [cv2.addWeighted(crop, 0.5, bgnd_img, 0.5, 0.0) for crop in mandible_crops]
-                real_imgs = []
-                for m in mandible_crops:
-                    m_pos = np.nonzero(m)
-                    real_img = self.bgnd_img.copy()
-                    real_img[max(min(m_pos[0]), 0):min(max(m_pos[0]), 1200),
-                    max(min(m_pos[1]), 0):min(max(m_pos[1]), 1920),
-                    :] = m[max(min(m_pos[0]), 0):min(max(m_pos[0]), 1200),
-                         max(min(m_pos[1]), 0):min(max(m_pos[1]), 1920), :]
-                    real_imgs.append(real_img)
-                # Reformat images to match Pytorch format
-                images = [torch.Tensor(img.transpose(2, 1, 0)) for img in real_imgs]
         # Version with raising another exception (stops when an empty file is found)
         except RuntimeError:
             raise FileNotFoundError(f"\nOne of {[img_path.stem for img_path in img_paths]} couldn't be loaded")
@@ -459,7 +439,7 @@ def filter_out_oof_mandible_by_pixel_match(dataset_root: pathlib.Path, annotatio
     :param dataset_root: path to the dataset root
     :param annotations: annotations df with all trajectories
     :param mandible_colour: maximum pixel RGB value difference to still be considered as part of the background
-    :param pixel_range: Range of values th be
+    :param pixel_range: Range of pixel values to be kept
     :return: filtered annotation df
     """
     cameras = {'Left': 'l', 'Right': 'r'}
@@ -523,7 +503,7 @@ def crop_mandible_by_pixel_match(imgs: list[np.ndarray],
         # Increase size of the mask
         true_pos = np.where(m)
         if i < 2:
-            m[max(min(true_pos[0]) - 25, 0):min(max(true_pos[0]) + 55, 1200),
+            m[max(min(true_pos[0]) - 75, 0):min(max(true_pos[0]) + 75, 1200),
               max(min(true_pos[1]) - 10, 0):min(max(true_pos[1]) + 20, 1920)] = True
         else:
             m[max(min(true_pos[0]) - 10, 0):min(max(true_pos[0]) + 10, 1200),

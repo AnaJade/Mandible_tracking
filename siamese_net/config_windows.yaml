@@ -31,8 +31,6 @@ data:
   resize_img:
     img_h: 1200
     img_w: 1920
-  change_bgnd_train: False
-  change_bgnd_pred: True
   grayscale: True
   rescale_pos: True
 training:
@@ -41,9 +39,9 @@ training:
   use_pretrained: True
   pre_trained_weights: ""
   cam_inputs:
-    - Left
-    - Right
-    - Side # center_rmBackground
+    - Left_real_bgnd
+    - Right_real_bgnd
+    - Side_real_bgnd # center_rmBackground
   num_fc_hidden_units: 256
   train_bs: 2
   valid_bs: 1

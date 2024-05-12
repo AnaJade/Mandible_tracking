@@ -469,12 +469,6 @@ def get_preds(model, device, dataloader, min_max_pos=None) -> pd.DataFrame:
     inference_time = []
     with torch.no_grad():
         for (images, targets) in tqdm(dataloader):
-            # Visualize images
-            real_imgs = [img[0, ...].clone().numpy() for img in images]
-            real_imgs = [(img.transpose((1, 2, 0)) * 255).astype('uint8') for img in real_imgs]
-            fig, axs = plt.subplots(1, len(real_imgs), layout='tight')
-            [axs[i].imshow(real_imgs[i]) for i in range(len(real_imgs))]
-            plt.show(block=True)
             images = [img.to(device) for img in images]
             start_time = time.time()
             output = model(images).squeeze()

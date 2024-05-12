@@ -15,3 +15,10 @@ merge_trajectories:
   filter_oof: True
   test_ratio: 0.2
   valid_ratio: 0.25
+add_real_bgnd:
+  bgnd_img_paths:
+    - chair_background.jpg
+  trajectory_annotations:
+    - traj_random0_mini.csv
+    - traj_random3_mini.csv
+    - traj_random4_mini.csv
