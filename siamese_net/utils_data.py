@@ -1,6 +1,7 @@
 import pathlib
 import warnings
 
+import cv2
 import matplotlib
 from tqdm import tqdm
 
@@ -23,7 +24,7 @@ import utils
 
 class MandibleDataset(Dataset):
     def __init__(self, root: pathlib.Path, cam_inputs: list, img_labels: pd.DataFrame, min_max_pos=None,
-                 transforms=None):
+                 transforms=None, bgnd_img=None):
         """
         Dataset object used to pass images to a siamese network
         :param root: dataset root path
@@ -31,11 +32,13 @@ class MandibleDataset(Dataset):
         :param img_labels: annotations for the images
         :param min_max_pos: min and max position values. If None, no rescaling will be done
         :param transforms: transforms that will be applied to each image before being used as input by the model
+        :param bgnd_img: Background image as RGB np array [img_w, img_h, c]
         """
         self.root = root
         self.img_labels = img_labels
         self.min_max_pos = min_max_pos
         self.transforms = transforms
+        self.bgnd_img = bgnd_img
         self.img_names = img_labels.index.values.tolist()
         self.cam_inputs = cam_inputs
         self.cameras = {'Left': 'l', 'Right': 'r', 'Side': 's', 'center_rmBackground': 's'}
@@ -58,6 +61,26 @@ class MandibleDataset(Dataset):
         # Read images
         try:
             images = [read_image(img_path.__str__()) for img_path in img_paths]
+            if self.bgnd_img is not None:
+                # Reformat images images
+                imgs = [img.numpy().transpose((1, 2, 0)) for img in images]
+                # Crop out mandible
+                mandible_colour = [199, 134, 98]    # Pixel range on old data (Windows)
+                # mandible_colour = [180, 121, 81]    # Pixel range on new data (Ubuntu)
+                mandible_crops = crop_mandible_by_pixel_match(imgs, mandible_colour, 30)
+                # Overlay imgs
+                # real_imgs = [cv2.addWeighted(crop, 0.5, bgnd_img, 0.5, 0.0) for crop in mandible_crops]
+                real_imgs = []
+                for m in mandible_crops:
+                    m_pos = np.nonzero(m)
+                    real_img = self.bgnd_img.copy()
+                    real_img[max(min(m_pos[0]), 0):min(max(m_pos[0]), 1200),
+                    max(min(m_pos[1]), 0):min(max(m_pos[1]), 1920),
+                    :] = m[max(min(m_pos[0]), 0):min(max(m_pos[0]), 1200),
+                         max(min(m_pos[1]), 0):min(max(m_pos[1]), 1920), :]
+                    real_imgs.append(real_img)
+                # Reformat images to match Pytorch format
+                images = [torch.Tensor(img.transpose(2, 1, 0)) for img in real_imgs]
         # Version with raising another exception (stops when an empty file is found)
         except RuntimeError:
             raise FileNotFoundError(f"\nOne of {[img_path.stem for img_path in img_paths]} couldn't be loaded")
@@ -429,10 +452,11 @@ def filter_out_oof_mandible(dataset_root: pathlib.Path, annotations: pd.DataFram
 
 
 def filter_out_oof_mandible_by_pixel_match(dataset_root: pathlib.Path, annotations: pd.DataFrame,
-                                           mandible_colour=[180, 121, 81], pixel_range=10) -> [pd.DataFrame, list]:
+                                           mandible_colour=(180, 121, 81), pixel_range=10) -> [pd.DataFrame, list]:
     """
     Filter out images where the mandible goes out of frame based on matching mandible pixel values
     Loads the two front images, and checks the border
+    :param dataset_root: path to the dataset root
     :param annotations: annotations df with all trajectories
     :param mandible_colour: maximum pixel RGB value difference to still be considered as part of the background
     :param pixel_range: Range of values th be
@@ -472,6 +496,48 @@ def filter_out_oof_mandible_by_pixel_match(dataset_root: pathlib.Path, annotatio
     annotations = annotations.drop(index=removed_imgs)
 
     return annotations, removed_imgs
+
+
+def crop_mandible_by_pixel_match(imgs: list[np.ndarray],
+                                 mandible_colour=(180, 121, 81), pixel_range=10) -> list:
+    """
+    Filter out images where the mandible goes out of frame based on matching mandible pixel values
+    Loads the two front images, and checks the border
+    :param imgs: list of images as an RGB np array
+    :param mandible_colour: maximum pixel RGB value difference to still be considered as part of the background
+    :param pixel_range: Range of values th be
+    :return: list of np arrays with the cropped out mandibles
+    """
+    # Split img channels
+    imgs_split = [cv2.split(img) for img in imgs]
+    # Get mandible pixels mask
+    masks = [(c < clim + pixel_range) & (c > clim - pixel_range) for img in imgs_split for c, clim in
+             zip(img, mandible_colour)]
+    masks = [np.logical_and(masks[int(len(masks)/3) * i],
+                            masks[int(len(masks)/3) * i + 1],
+                            masks[int(len(masks)/3) * i + 2]) for i in range(int(len(masks)/3))]
+    # Crop out mandible
+    mandible_crops = []
+    for i, (img, m) in enumerate(zip(imgs, masks)):
+        img_mask = img.copy()
+        # Increase size of the mask
+        true_pos = np.where(m)
+        if i < 2:
+            m[max(min(true_pos[0]) - 25, 0):min(max(true_pos[0]) + 55, 1200),
+              max(min(true_pos[1]) - 10, 0):min(max(true_pos[1]) + 20, 1920)] = True
+        else:
+            m[max(min(true_pos[0]) - 10, 0):min(max(true_pos[0]) + 10, 1200),
+              max(min(true_pos[1]) - 10, 0):min(max(true_pos[1]) + 10, 1920)] = True
+        img_mask[~m] = [0, 0, 0]
+        mandible_crops.append(img_mask)
+        """
+        fig, axs = plt.subplots(1, 2, layout='constrained')
+        axs[0].imshow(img_mask)
+        axs[1].imshow(img)
+        plt.show()
+        """
+
+    return mandible_crops
 
 
 if __name__ == '__main__':

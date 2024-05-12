@@ -117,7 +117,7 @@ class SiameseNetwork(nn.Module):
 
     def extract_features_subnets(self, imgs):
         # Image feature extraction
-        outputs = [self.extract_features(img) for img in imgs]
+        outputs = [self.extract_features(img) for img in imgs]  # Shape [1, # feature map, map_h, map_w]
         return outputs
 
     def forward_subnet(self, x):
@@ -511,7 +511,8 @@ def overlay_activation_map(imgs: list[np.ndarray], heatmaps: list[np.ndarray]) -
     heatmaps = [cv2.resize(heatmap, (imgs[0].shape[1], imgs[0].shape[0])) for heatmap in heatmaps]
     heatmaps = [np.uint8(255 * (heatmap - np.min(heatmap)) / (np.max(heatmap) - np.min(heatmap))) for heatmap in
                 heatmaps]
-    heatmaps = [cv2.applyColorMap(heatmap, cv2.COLORMAP_JET) for heatmap in heatmaps]
+    heatmaps = [cv2.applyColorMap(heatmap, cv2.COLORMAP_HOT) for heatmap in heatmaps]
+    heatmaps = [cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB) for heatmap in heatmaps]
     # Convert images to grayscale
     if imgs[0].shape[-1] > 1:
         imgs = [np.repeat(rgb2gray(img)[:, :, :], 3, axis=2) for img in imgs]
@@ -749,6 +750,7 @@ def wandb_init(configs: dict):
             "trajectories_test": configs['data']['trajectories_test'],
             "image_input_shape": [configs['data']['resize_img']['img_h'], configs['data']['resize_img']['img_w']],
             "rescale_pos": configs['data']['rescale_pos'],
+            "change_bgnd": configs['data']['change_bgnd'],
             "grayscale": configs['data']['grayscale'],
             "subnet": configs['training']['sub_model'],
             "weights_file_addon": configs['training']['weights_file_addon'],

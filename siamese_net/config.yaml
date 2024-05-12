@@ -25,6 +25,7 @@ data:
   resize_img:
     img_h: 1200
     img_w: 1920
+  change_bgnd: True
   grayscale: True
   rescale_pos: True
 training:

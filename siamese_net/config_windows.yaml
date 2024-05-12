@@ -8,15 +8,15 @@ data:
     - traj_random3_mini.csv
     # - traj_random3.csv
   trajectories_test:
-    # - traj_random4_mini.csv
+    - traj_random4_mini.csv
     # - traj_random_slbo.csv
     # - traj_random_slt.csv
     # - traj_random_srbo.csv
     # - traj_random_srt.csv
     # - traj_random4.csv
     # - traj_splitYXZ_s20.csv
-    - traj_slice_y_no_oof_test.csv
-    - traj_slice_z_no_oof_test.csv
+    # - traj_slice_y_no_oof_test.csv
+    # - traj_slice_z_no_oof_test.csv
     # - traj_slice_y_occ_test.csv
     # - traj_random6.csv
     # - traj_random7.csv
@@ -31,11 +31,12 @@ data:
   resize_img:
     img_h: 1200
     img_w: 1920
+  change_bgnd: True
   grayscale: False
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: 'grayscale_no_oof' # 'no_bgnd' # "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  weights_file_addon: 'test' # 'grayscale_no_oof' # 'no_bgnd' # "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: True
   pre_trained_weights: ""
   cam_inputs:
