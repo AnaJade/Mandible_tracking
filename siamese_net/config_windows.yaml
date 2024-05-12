@@ -31,12 +31,13 @@ data:
   resize_img:
     img_h: 1200
     img_w: 1920
-  change_bgnd: True
-  grayscale: False
+  change_bgnd_train: False
+  change_bgnd_pred: True
+  grayscale: True
   rescale_pos: True
 training:
   sub_model: 'resnet18' # 'resnet18' 'efficientnet-b0'
-  weights_file_addon: 'test' # 'grayscale_no_oof' # 'no_bgnd' # "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
+  weights_file_addon: 'test_grayscale' # 'grayscale_no_oof' # 'no_bgnd' # "best_resnet18"  # Weights saved in f"{subnet_name}_{cam_str}cams_{nb_hidden}_{weights_file_addon}"
   use_pretrained: True
   pre_trained_weights: ""
   cam_inputs:

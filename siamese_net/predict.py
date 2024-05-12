@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 
+import cv2
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import torch
 import torchvision
 from torch.utils.data import DataLoader
 from sklearn.metrics import mean_squared_error
+from torchvision.io import read_image
 
 # Disable warning for using transforms.v2
 torchvision.disable_beta_transforms_warning()
@@ -43,12 +45,14 @@ if __name__ == '__main__':
     anno_paths_test = configs['data']['trajectories_test']
     resize_img_h = configs['data']['resize_img']['img_h']
     resize_img_w = configs['data']['resize_img']['img_w']
-    change_bgnd = configs['data']['change_bgnd']
+    change_bgnd_train = configs['data']['change_bgnd_train']
+    change_bgnd_pred = configs['data']['change_bgnd_pred']
     grayscale = configs['data']['grayscale']
     rescale_pos = configs['data']['rescale_pos']
 
     subnet_name = configs['training']['sub_model']
     cam_inputs = configs['training']['cam_inputs']
+    num_hidden = configs['training']['num_fc_hidden_units']
     test_bs = configs['training']['test_bs']
     weights_file_addon = configs['training']['weights_file_addon']
     rename_side = True if 'center_rmBackground' in cam_inputs else False
@@ -57,9 +61,9 @@ if __name__ == '__main__':
         cam_inputs[-1] = 'Side'
     cam_str = ''.join([c[0].lower() for c in cam_inputs])
     if weights_file_addon:
-        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}_{weights_file_addon}"
+        weights_file = f"{subnet_name}_{cam_str}cams_{num_hidden}_{weights_file_addon}"
     else:
-        weights_file = f"{subnet_name}_{cam_str}cams_{configs['training']['num_fc_hidden_units']}"
+        weights_file = f"{subnet_name}_{cam_str}cams_{num_hidden}"
     print(f'Loading weights from: {weights_file}')
 
     if rescale_pos:
@@ -97,8 +101,12 @@ if __name__ == '__main__':
     else:
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}.csv")
 
-    if change_bgnd:
+    if change_bgnd_pred:
         pred_file = pathlib.Path(str(pred_file).replace(pred_file.stem, f'{pred_file.stem}_real_bgnd'))
+        bgnd_img = read_image(dataset_root.joinpath(f'chair_background.jpg').__str__()).numpy().transpose((1, 2, 0))
+        bgnd_img = cv2.resize(bgnd_img, dsize=(1920, 1200), interpolation=cv2.INTER_CUBIC)
+    else:
+        bgnd_img = None
 
     if pred_file.exists():
         print(f'Loading preds from {pred_file}')
@@ -118,7 +126,7 @@ if __name__ == '__main__':
         else:
             transforms = v2.Compose([torchvision.transforms.Resize((resize_img_h, resize_img_w)),
                                      NormTransform()])
-        dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms)
+        dataset_test = MandibleDataset(dataset_root, cam_inputs, annotations_test, min_max_pos, transforms, bgnd_img)
         # NOTE: shuffle has to be false, to be able to match the predictions to the right frames
         # dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=4)
         dataloader_test = DataLoader(dataset_test, batch_size=test_bs, shuffle=False, num_workers=0)
