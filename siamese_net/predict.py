@@ -43,6 +43,7 @@ if __name__ == '__main__':
     anno_paths_test = configs['data']['trajectories_test']
     resize_img_h = configs['data']['resize_img']['img_h']
     resize_img_w = configs['data']['resize_img']['img_w']
+    change_bgnd = configs['data']['change_bgnd']
     grayscale = configs['data']['grayscale']
     rescale_pos = configs['data']['rescale_pos']
 
@@ -85,12 +86,19 @@ if __name__ == '__main__':
 
     # Get pred file name
     # Set file name
-    if any('occ' in img for img in annotations_test.index.values):
+    if any('occ' in img for img in annotations_test.index.values) and not any(
+            'slice' in img for img in annotations_test.index.values):
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}_occ.csv")
-    elif any('slice' in img for img in annotations_test.index.values): 
+    elif any('slice' in img for img in annotations_test.index.values) and not any(
+            'occ' in img for img in annotations_test.index.values):
+        pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}_test_unoccluded.csv")
+    elif any('slice' in img for img in annotations_test.index.values):
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}_test.csv")
     else:
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}.csv")
+
+    if change_bgnd:
+        pred_file = pathlib.Path(str(pred_file).replace(pred_file.stem, f'{pred_file.stem}_real_bgnd'))
 
     if pred_file.exists():
         print(f'Loading preds from {pred_file}')
