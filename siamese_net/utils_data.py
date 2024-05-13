@@ -42,7 +42,12 @@ class MandibleDataset(Dataset):
         self.img_names = img_labels.index.values.tolist()
         self.cam_inputs = cam_inputs
         self.cameras = {'Left': 'l', 'Right': 'r', 'Side': 's', 'center_rmBackground': 's',
-                        'Left_crop': 'l', 'Right_crop': 'r', 'Side_crop': 's'}
+                        'Left_crop': 'l', 'Right_crop': 'r', 'Side_crop': 's',
+                        'Left_Mask': 'l', 'Right_Mask': 'r', 'Side_Mask': 's',
+                        'Left_Mask_Patches_256': 'l', 'Right_Mask_Patches_256': 'r', 'Side_Mask_Patches_256': 's',
+                        'Left_Mask_Patches_128': 'l', 'Right_Mask_Patches_128': 'r', 'Side_Mask_Patches_128': 's',
+                        'Left_Mask_Patches_64': 'l', 'Right_Mask_Patches_64': 'r', 'Side_Mask_Patches_64': 's',
+                        'Left_Mask_Patches_32': 'l', 'Right_Mask_Patches_32': 'r', 'Side_Mask_Patches_32': 's'}
 
         self.pos_min = None
         self.pos_max = None

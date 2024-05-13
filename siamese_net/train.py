@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 import platform
+import pandas as pd
 
 import cv2
 import torch
@@ -92,6 +93,27 @@ if __name__ == '__main__':
     annotations_train = utils_data.merge_annotations(dataset_root, anno_paths_train)
     annotations_valid = utils_data.merge_annotations(dataset_root, anno_paths_valid)
     annotations_test = utils_data.merge_annotations(dataset_root, anno_paths_test)
+
+    # Check if all images are available
+    unavailable_imgs = set()
+    all_annotations = pd.concat([annotations_train, annotations_valid, annotations_test], axis=0)
+    annotation_stems = set(all_annotations.index.tolist())
+    for c in cam_inputs:
+        imgs = list(dataset_root.joinpath(c).glob('*.jpg'))
+        img_stems = set([i.stem[:-2] for i in imgs])
+        cam_unavailable_imgs = set(annotation_stems) ^ set(img_stems)
+        if cam_unavailable_imgs:
+            unavailable_imgs.update(cam_unavailable_imgs)
+    if unavailable_imgs:
+        unavailable_imgs_train = set(annotations_train.index.tolist()) & unavailable_imgs
+        unavailable_imgs_valid = set(annotations_valid.index.tolist()) & unavailable_imgs
+        unavailable_imgs_test = set(annotations_test.index.tolist()) & unavailable_imgs
+        annotations_train.drop(index=list(unavailable_imgs_train), inplace=True)
+        annotations_valid.drop(index=list(unavailable_imgs_valid), inplace=True)
+        annotations_test.drop(index=list(unavailable_imgs_test), inplace=True)
+        print(f'Missing train images: {list(unavailable_imgs_train)}')
+        print(f'Missing valid images: {list(unavailable_imgs_valid)}')
+        print(f'Missing test images: {list(unavailable_imgs_test)}')
 
     # Create dataset object
     print("Initializing dataset object...")
