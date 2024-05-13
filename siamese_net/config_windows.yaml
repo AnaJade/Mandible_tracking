@@ -39,9 +39,9 @@ training:
   use_pretrained: True
   pre_trained_weights: ""
   cam_inputs:
-    - Left_real_bgnd
-    - Right_real_bgnd
-    - Side_real_bgnd # center_rmBackground
+    - Left_crop
+    - Right_crop
+    - Side_crop # center_rmBackground
   num_fc_hidden_units: 256
   train_bs: 2
   valid_bs: 1
