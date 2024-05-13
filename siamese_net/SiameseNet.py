@@ -750,7 +750,6 @@ def wandb_init(configs: dict):
             "trajectories_test": configs['data']['trajectories_test'],
             "image_input_shape": [configs['data']['resize_img']['img_h'], configs['data']['resize_img']['img_w']],
             "rescale_pos": configs['data']['rescale_pos'],
-            "change_bgnd": configs['data']['change_bgnd'],
             "grayscale": configs['data']['grayscale'],
             "subnet": configs['training']['sub_model'],
             "weights_file_addon": configs['training']['weights_file_addon'],

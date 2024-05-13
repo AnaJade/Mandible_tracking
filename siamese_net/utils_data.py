@@ -1,6 +1,7 @@
 import pathlib
 import warnings
 import platform
+from random import randint
 
 import cv2
 import matplotlib
@@ -41,7 +42,7 @@ class MandibleDataset(Dataset):
         self.img_names = img_labels.index.values.tolist()
         self.cam_inputs = cam_inputs
         self.cameras = {'Left': 'l', 'Right': 'r', 'Side': 's', 'center_rmBackground': 's',
-                        'Left_real_bgnd': 'l', 'Right_real_bgnd': 'r', 'Side_real_bgnd': 's'}
+                        'Left_crop': 'l', 'Right_crop': 'r', 'Side_crop': 's'}
 
         self.pos_min = None
         self.pos_max = None
@@ -479,14 +480,14 @@ def filter_out_oof_mandible_by_pixel_match(dataset_root: pathlib.Path, annotatio
 
 
 def crop_mandible_by_pixel_match(imgs: list[np.ndarray],
-                                 mandible_colour=(180, 121, 81), pixel_range=10) -> list:
+                                 mandible_colour=(180, 121, 81), pixel_range=10) -> [list, list]:
     """
     Filter out images where the mandible goes out of frame based on matching mandible pixel values
     Loads the two front images, and checks the border
     :param imgs: list of images as an RGB np array
     :param mandible_colour: maximum pixel RGB value difference to still be considered as part of the background
     :param pixel_range: Range of values th be
-    :return: list of np arrays with the cropped out mandibles
+    :return: list of np arrays with the cropped out mandibles and list with the cropped positions
     """
     # Split img channels
     imgs_split = [cv2.split(img) for img in imgs]
@@ -498,18 +499,35 @@ def crop_mandible_by_pixel_match(imgs: list[np.ndarray],
                             masks[int(len(masks)/3) * i + 2]) for i in range(int(len(masks)/3))]
     # Crop out mandible
     mandible_crops = []
+    crop_pos = []
+    front_crop_h_min = randint(-35, 15)
+    front_crop_h_max = randint(-35, 15)
+    front_crop_w_min = randint(-50, 10)
+    front_crop_w_max = randint(-50, 10)
+    side_crop_w_min = randint(-20, 10)
+    side_crop_w_max = randint(-20, 10)
     for i, (img, m) in enumerate(zip(imgs, masks)):
         img_mask = img.copy()
         # Increase size of the mask
         true_pos = np.where(m)
         if i < 2:
-            m[max(min(true_pos[0]) - 75, 0):min(max(true_pos[0]) + 75, 1200),
-              max(min(true_pos[1]) - 10, 0):min(max(true_pos[1]) + 20, 1920)] = True
+            h_min = max(min(true_pos[0]) - front_crop_h_min, 0)
+            h_max = min(max(true_pos[0]) + front_crop_h_max, 1200)
+            w_min = max(min(true_pos[1]) - front_crop_w_min, 0)
+            w_max = min(max(true_pos[1]) + front_crop_w_max, 1920)
+
         else:
-            m[max(min(true_pos[0]) - 10, 0):min(max(true_pos[0]) + 10, 1200),
-              max(min(true_pos[1]) - 10, 0):min(max(true_pos[1]) + 10, 1920)] = True
+            h_min = max(min(true_pos[0]) - front_crop_h_min, 0)
+            h_max = min(max(true_pos[0]) + front_crop_h_max, 1200)
+            w_min = max(min(true_pos[1]) - side_crop_w_min, 0)
+            w_max = min(max(true_pos[1]) + side_crop_w_max, 1920)
+        m[h_min:h_max, w_min: w_max] = True
+        m_inv = np.full(m.shape, False)
+        m_inv[h_min:h_max, w_min: w_max] = True
+        m = np.logical_and(m, m_inv)
         img_mask[~m] = [0, 0, 0]
         mandible_crops.append(img_mask)
+        crop_pos.append({'h_min': h_min, 'h_max': h_max, 'w_min': w_min, 'w_max': w_max})
         """
         fig, axs = plt.subplots(1, 2, layout='constrained')
         axs[0].imshow(img_mask)
@@ -517,7 +535,7 @@ def crop_mandible_by_pixel_match(imgs: list[np.ndarray],
         plt.show()
         """
 
-    return mandible_crops
+    return mandible_crops, crop_pos
 
 
 if __name__ == '__main__':

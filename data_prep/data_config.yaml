@@ -42,6 +42,12 @@ add_real_bgnd:
   bgnd_img_paths:
     - chair_background.jpg
   trajectory_annotations:
-    - traj_slice_y_no_oof_test.csv
-    - traj_slice_z_no_oof_test.csv
-    - traj_slice_y_occ_test.csv
+    - traj_slice_y_no_oof_train.csv
+    - traj_slice_z_no_oof_train.csv
+    - traj_slice_y_occ_train.csv
+    - traj_slice_y_no_oof_valid.csv
+    - traj_slice_z_no_oof_valid.csv
+    - traj_slice_y_occ_valid.csv
+    # - traj_slice_y_no_oof_test.csv
+    # - traj_slice_z_no_oof_test.csv
+    # - traj_slice_y_occ_test.csv

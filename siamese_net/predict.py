@@ -54,7 +54,7 @@ if __name__ == '__main__':
     test_bs = configs['training']['test_bs']
     weights_file_addon = configs['training']['weights_file_addon']
     rename_side = True if 'center_rmBackground' in cam_inputs else False
-    real_bgnd = True if any('real_bgnd' in c for c in cam_inputs) else False
+    real_bgnd = True if any('crop' in c for c in cam_inputs) else False
 
     if rename_side:
         cam_inputs[-1] = 'Side'
@@ -101,7 +101,7 @@ if __name__ == '__main__':
         pred_file = pathlib.Path(f"siamese_net/preds/{weights_file}.csv")
 
     if real_bgnd:
-        pred_file = pathlib.Path(str(pred_file).replace(pred_file.stem, f'{pred_file.stem}_real_bgnd'))
+        pred_file = pathlib.Path(str(pred_file).replace(pred_file.stem, f'{pred_file.stem}_crop'))
 
     if pred_file.exists():
         print(f'Loading preds from {pred_file}')

@@ -23,7 +23,7 @@ from torchvision.io import read_image
 import utils
 
 
-def create_realistic_image(dataset_root: pathlib.Path, annotations: pd.DataFrame, bgnd_imgs: list[np.ndarray],
+def create_realistic_image(dataset_root: pathlib.Path, annotations: pd.DataFrame, bgnd_imgs: list[np.ndarray] | None,
                            mandible_colour=(180, 121, 81), pixel_range=10) -> None:
     """
     Filter out images where the mandible goes out of frame based on matching mandible pixel values
@@ -36,34 +36,47 @@ def create_realistic_image(dataset_root: pathlib.Path, annotations: pd.DataFrame
     :return:
     """
     cameras = {'Left': 'l', 'Right': 'r', 'Side': 's'}
+    cropped_pos = {}
     for img_set in tqdm(annotations.index.values.tolist()):
         # Build full image paths
         img_paths = [dataset_root.joinpath(f'{cam}/{img_set}_{cameras[cam]}.jpg') for cam in ['Left', 'Right', 'Side']]
         # Load images
         imgs = [read_image(img_path.__str__()).numpy().transpose((1, 2, 0)) for img_path in img_paths]
         # Crop out mandible
-        mandible_crops = utils_data.crop_mandible_by_pixel_match(imgs, mandible_colour, pixel_range)
+        mandible_crops, crop_pos = utils_data.crop_mandible_by_pixel_match(imgs, mandible_colour, pixel_range)
+        # Save crop coords
+        for i, cam in enumerate(['Left', 'Right', 'Side']):
+            cropped_pos[f'{img_set}_{cameras[cam]}'] = crop_pos[i]
         # Overlay imgs
-        real_imgs = []
-        bgnd_img = random.choice(bgnd_imgs)
-        for m in mandible_crops:
-            m_pos = np.nonzero(m)
-            real_img = bgnd_img.copy()
-            real_img[max(min(m_pos[0]), 0):min(max(m_pos[0]), 1200),
-                     max(min(m_pos[1]), 0):min(max(m_pos[1]), 1920),
-                     :] = m[max(min(m_pos[0]), 0):min(max(m_pos[0]), 1200),
-                            max(min(m_pos[1]), 0):min(max(m_pos[1]), 1920), :]
-            real_imgs.append(real_img)
+        if bgnd_imgs is not None:
+            real_imgs = []
+            bgnd_img = random.choice(bgnd_imgs)
+            for m, c_pos in zip(mandible_crops, crop_pos):
+                real_img = bgnd_img.copy()
+                real_img[c_pos['h_min']:c_pos['h_max'],
+                        c_pos['w_min']:c_pos['w_max'], :] = m[c_pos['h_min']:c_pos['h_max'],
+                                                            c_pos['w_min']:c_pos['w_max'], :]
+                real_imgs.append(real_img)
+        else:
+            real_imgs = mandible_crops
         """
         fig, axs = plt.subplots(1, 3, layout='tight')
         [axs[i].imshow(real_imgs[i]) for i in range(3)]
         plt.show()
         """
         # Save new imgs
-        img_paths_new = [dataset_root.joinpath(f'{cam}_real_bgnd/{img_set}_{cameras[cam]}.jpg') for
+        img_paths_new = [dataset_root.joinpath(f'{cam}_crop/{img_set}_{cameras[cam]}.jpg') for
                          cam in ['Left', 'Right', 'Side']]
         [cv2.imwrite(img_file.__str__(), cv2.cvtColor(img, cv2.COLOR_RGB2BGR)) for
          img_file, img in zip(img_paths_new, real_imgs)]
+    # Save cropped pos
+    cropped_pos = pd.DataFrame.from_dict(cropped_pos, orient='index').reset_index().rename(columns={'index': 'img'})
+    cropped_pos = cropped_pos.set_index('img')
+    cropped_pos_file = dataset_root.joinpath(f'mandible_crop_coords.csv')
+    if cropped_pos_file.exists():
+        old_cropped_pos = pd.read_csv(cropped_pos_file, index_col='img')
+        cropped_pos = pd.concat([old_cropped_pos, cropped_pos], axis=0).drop_duplicates(keep='last')
+    cropped_pos.to_csv(cropped_pos_file)
 
 
 if __name__ == '__main__':
@@ -100,5 +113,5 @@ if __name__ == '__main__':
     else:
         pixel_range = [180, 121, 81]
 
-    create_realistic_image(dataset_root, annotations, bgnd_imgs, pixel_range, 30)
+    create_realistic_image(dataset_root, annotations, None, pixel_range, 30)
     print()
